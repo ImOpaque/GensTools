@@ -1,0 +1,29 @@
+# Custom Enchantments Configuration
+enchants:
+  explosive:
+    display-name: "&cExplosive"
+    description: "&7Breaks blocks in an area"
+    max-level: 5
+    is-treasure: false
+    type: explosive
+
+  auto_smelt:
+    display-name: "&6Auto Smelt"
+    description: "&7Automatically smelts blocks"
+    max-level: 3
+    is-treasure: false
+    type: auto_smelt
+
+  critical_strike:
+    display-name: "&4Critical Strike"
+    description: "&7Chance to deal critical damage"
+    max-level: 5
+    is-treasure: false
+    type: critical_strike
+
+  life_steal:
+    display-name: "&aLife Steal"
+    description: "&7Heals when dealing damage"
+    max-level: 3
+    is-treasure: false
+    type: life_steal

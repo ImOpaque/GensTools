@@ -1,0 +1,19 @@
+# Custom Tools Configuration
+tools:
+  default_pickaxe:
+    display-name: "&bGens Pickaxe"
+    type: PICKAXE
+    lore:
+      - "&7A magical pickaxe that levels up"
+      - "&7as you mine."
+      - ""
+      - "&7Mine blocks to gain experience!"
+
+  default_sword:
+    display-name: "&cGens Sword"
+    type: SWORD
+    lore:
+      - "&7A magical sword that levels up"
+      - "&7as you fight."
+      - ""
+      - "&7Attack mobs to gain experience!"

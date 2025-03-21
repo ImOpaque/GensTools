@@ -1,0 +1,34 @@
+name: GensTools
+version: '${project.version}'
+main: me.opaque.genstools.GensTools
+authors: [ Opaque ]
+api-version: '1.21'
+softdepend:
+  - PlaceholderAPI
+depend: [GensCore]
+description: Custom tools plugin for Minecraft Gens gamemode
+
+commands:
+  genstools:
+    description: Main command for GensTools
+    usage: /genstools <subcommand>
+    aliases: [gtools, gt]
+    permission: genstools.command
+
+permissions:
+  genstools.command:
+    description: Allows using the GensTools command
+    default: op
+  genstools.give:
+    description: Allows giving GensTools to players
+    default: op
+  genstools.enchant:
+    description: Allows enchanting GensTools
+    default: op
+  genstools.admin:
+    description: Grants all GensTools permissions
+    default: op
+    children:
+      genstools.command: true
+      genstools.give: true
+      genstools.enchant: true

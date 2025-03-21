@@ -1,0 +1,56 @@
+# GensTools Configuration
+
+# General settings
+settings:
+  # Debug mode: Set to true for more detailed console output
+  debug: false
+
+  # Experience multiplier: Affects how much EXP tools gain
+  exp-multiplier: 1.0
+
+  # Prefix for plugin messages
+  prefix: "&8[&bGensTools&8] &r"
+  # Number format suffixes for display
+  number-format:
+    enabled: true
+    suffixes:
+      - k-1000
+      - m-1000000
+      - b-1000000000
+      - t-1000000000000
+      - q-1000000000000000
+
+# Tool Settings
+tool-settings:
+  pickaxe:
+    exp-values:
+      STONE: 1
+      COAL_ORE: 3
+      IRON_ORE: 5
+      GOLD_ORE: 7
+      DIAMOND_ORE: 10
+      EMERALD_ORE: 15
+      DEEPSLATE: 2
+      DEEPSLATE_COAL_ORE: 4
+      DEEPSLATE_IRON_ORE: 6
+      DEEPSLATE_GOLD_ORE: 8
+      DEEPSLATE_DIAMOND_ORE: 12
+      DEEPSLATE_EMERALD_ORE: 18
+      ANCIENT_DEBRIS: 20
+
+  sword:
+    mob-bonuses:
+      ZOMBIE: 5
+      SKELETON: 5
+      SPIDER: 5
+      CREEPER: 10
+      ENDERMAN: 15
+      WITHER_SKELETON: 20
+      WITHER: 100
+      ENDER_DRAGON: 200
+
+# Leveling Settings
+leveling:
+  show-messages: true
+  show-effects: true
+  message: "&aYour tool leveled up to &e{level}&a!"
