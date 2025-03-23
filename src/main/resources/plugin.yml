@@ -16,19 +16,39 @@ commands:
     permission: genstools.command
 
 permissions:
-  genstools.command:
-    description: Allows using the GensTools command
+  genstools.command.give:
+    description: Allows giving tools to players
     default: op
-  genstools.give:
-    description: Allows giving GensTools to players
+  genstools.command.enchant:
+    description: Allows adding enchantments to tools
     default: op
-  genstools.enchant:
-    description: Allows enchanting GensTools
+  genstools.command.list:
+    description: Allows listing tools and enchantments
+    default: op
+  genstools.command.setlevel:
+    description: Allows setting tool levels
+    default: op
+  genstools.command.setexp:
+    description: Allows setting tool experience
+    default: op
+  genstools.command.addexp:
+    description: Allows adding experience to tools
+    default: op
+  genstools.command.info:
+    description: Allows viewing tool information
+    default: true
+  genstools.command.reload:
+    description: Allows reloading the configuration
     default: op
   genstools.admin:
-    description: Grants all GensTools permissions
+    description: Grants all administrative permissions
     default: op
     children:
-      genstools.command: true
-      genstools.give: true
-      genstools.enchant: true
+      genstools.command.give: true
+      genstools.command.enchant: true
+      genstools.command.list: true
+      genstools.command.setlevel: true
+      genstools.command.setexp: true
+      genstools.command.addexp: true
+      genstools.command.info: true
+      genstools.command.reload: true

@@ -2,6 +2,11 @@
 <project version="4">
   <component name="RemoteRepositoriesConfiguration">
     <remote-repository>
+      <option name="id" value="edlicense-repo" />
+      <option name="name" value="edlicense-repo" />
+      <option name="url" value="https://repo.edlicense.com/repository/maven-releases/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="decent-holograms" />
       <option name="name" value="decent-holograms" />
       <option name="url" value="https://jitpack.io" />

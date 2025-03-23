@@ -119,11 +119,101 @@ public class NumberFormatter {
     }
 
     /**
+     * Format a number using the configured suffixes
+     * @param number The number to format
+     * @return The formatted number string
+     */
+    public String format(int number) {
+        return format((long) number);
+    }
+
+    /**
+     * Formats a number with commas and decimal places
+     *
+     * @param number The number to format
+     * @param decimalPlaces The number of decimal places to show
+     * @return A formatted string
+     */
+    public String format(double number, int decimalPlaces) {
+        if (!enabled || Math.abs(number) < 1000) {
+            StringBuilder pattern = new StringBuilder("#,##0");
+            if (decimalPlaces > 0) {
+                pattern.append(".");
+                for (int i = 0; i < decimalPlaces; i++) {
+                    pattern.append("0");
+                }
+            }
+
+            DecimalFormat customFormat = new DecimalFormat(pattern.toString());
+            return customFormat.format(number);
+        }
+
+        for (NumberSuffix suffix : suffixes) {
+            if (Math.abs(number) >= suffix.getValue()) {
+                double value = number / suffix.getValue();
+
+                StringBuilder pattern = new StringBuilder("#,##0");
+                if (decimalPlaces > 0) {
+                    pattern.append(".");
+                    for (int i = 0; i < decimalPlaces; i++) {
+                        pattern.append("0");
+                    }
+                }
+
+                DecimalFormat customFormat = new DecimalFormat(pattern.toString());
+                return customFormat.format(value) + suffix.getSuffix();
+            }
+        }
+
+        StringBuilder pattern = new StringBuilder("#,##0");
+        if (decimalPlaces > 0) {
+            pattern.append(".");
+            for (int i = 0; i < decimalPlaces; i++) {
+                pattern.append("0");
+            }
+        }
+
+        DecimalFormat customFormat = new DecimalFormat(pattern.toString());
+        return customFormat.format(number);
+    }
+
+    /**
+     * Formats a progress bar
+     *
+     * @param current The current value
+     * @param max The maximum value
+     * @param totalBars The total number of bars
+     * @param barChar The character to use for filled bars
+     * @param emptyChar The character to use for empty bars
+     * @return A formatted progress bar
+     */
+    public String formatProgressBar(int current, int max, int totalBars, char barChar, char emptyChar) {
+        int bars = (int) Math.round((double) current / max * totalBars);
+
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < totalBars; i++) {
+            builder.append(i < bars ? barChar : emptyChar);
+        }
+
+        return builder.toString();
+    }
+
+    /**
      * Check if formatting is enabled
      * @return true if enabled, false otherwise
      */
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /**
+     * Get a static instance of the standard formatter
+     * This is useful for static contexts where the plugin instance isn't available
+     *
+     * @return A DecimalFormat with comma separator
+     */
+    public static DecimalFormat getStandardFormatter() {
+        return decimalFormat;
     }
 
     /**

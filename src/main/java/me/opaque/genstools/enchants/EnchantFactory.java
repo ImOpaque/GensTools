@@ -4,6 +4,7 @@ import me.opaque.genstools.enchants.tools.AutoSmeltEnchant;
 import me.opaque.genstools.enchants.tools.ExplosiveEnchant;
 import me.opaque.genstools.enchants.weapons.CriticalStrikeEnchant;
 import me.opaque.genstools.enchants.weapons.LifeStealEnchant;
+import me.opaque.genstools.enchants.weapons.ShardGreedEnchant;
 
 public class EnchantFactory {
 
@@ -25,6 +26,7 @@ public class EnchantFactory {
             case "auto_smelt" -> new AutoSmeltEnchant(id, displayName, description, maxLevel, isTreasure);
             case "critical_strike" -> new CriticalStrikeEnchant(id, displayName, description, maxLevel, isTreasure);
             case "life_steal" -> new LifeStealEnchant(id, displayName, description, maxLevel, isTreasure);
+            case "shard_greed" -> new ShardGreedEnchant(id, displayName, description, maxLevel, isTreasure);
             default -> null;
         };
     }

@@ -1,0 +1,99 @@
+# GensTools Messages
+# Use & for color codes and &#RRGGBB for hex colors
+
+# General messages
+general:
+  prefix: "&8[&6GensTools&8] "
+  no-permission: "{prefix}&cYou don't have permission to use this command!"
+  player-only: "&cThis command can only be used by players!"
+  player-not-found: "&cPlayer not found!"
+  console-specify-player: "&cConsole must specify a player!"
+  unknown-command: "&cUnknown command. Type /genstools help for help."
+
+# Tool-related messages
+tools:
+  level-up: "&aYour {tool_name} &aleveled up to level &e{level}&a!"
+  experience-gain: "&7+&b{exp} &7XP"
+  tool-max-level: "&aYour {tool_name} &ahas reached the maximum level of &e{level}&a!"
+  not-holding-tool: "&cYou must be holding a valid GensTool!"
+  enchant-added: "&aAdded &e{enchant} {level} &ato your tool!"
+  # New exp gain messages
+  kill-exp-gain: "&a+{exp} XP &7for killing a &f{mob_type}"
+  mining-exp-gain: "&a+{exp} XP &7for mining &f{block_type}"
+  damage-exp-gain: "&a+{exp} XP &7for combat damage"
+  boss-kill-exp-gain: "&a+{exp} XP &7for defeating &6{mob_name}&7!"
+  # Enchantment activation messages
+  shard-greed-activated: "&6&lSHARD GREED ACTIVATED: &7Gained &e{shards} shards!"
+  critical-strike-activated: "&c&lCRITICAL STRIKE! &7Dealt &c{damage} &7extra damage!"
+  life-steal-activated: "&a&lLIFE STEAL! &7Healed for &a{amount} &7health!"
+  explosive-activated: "&e&lEXPLOSIVE! &7Broke &e{count} &7extra blocks!"
+  auto-smelt-activated: "&6&lAUTO SMELT! &7Automatically smelted &e{item}&7!"
+
+# Command messages
+commands:
+  give:
+    usage: "&cUsage: /genstools give <player> <tool>"
+    success: "&aGave &e{tool} &ato &e{player}&a!"
+    invalid-tool: "&cInvalid tool ID!"
+
+  enchant:
+    usage: "&cUsage: /genstools enchant <enchant> <level>"
+    success: "&aAdded enchant &e{enchant} &alevel &e{level} &ato tool!"
+    failure: "&cFailed to add enchant. Make sure you're holding a GensTool."
+    invalid-level: "&cInvalid level!"
+    invalid-enchant: "&cInvalid enchant ID!"
+
+  list:
+    usage: "&cUsage: /genstools list <tools|enchants>"
+    tools-header: "&6=== Available Tools ==="
+    enchants-header: "&6=== Available Enchantments ==="
+    list-item: "&e- {id}"
+
+  setlevel:
+    usage: "&cUsage: /genstools setlevel <level> [player]"
+    success: "&aSet tool level to &e{level}&a!"
+    success-target: "&aYour tool was set to level &e{level} &aby an admin!"
+    failure: "&cFailed to set level. Make sure a valid GensTool is being held."
+    invalid-level: "&cInvalid level!"
+    level-range: "&cLevel must be between 1 and {max_level}!"
+
+  setexp:
+    usage: "&cUsage: /genstools setexp <amount> [player]"
+    success: "&aSet tool EXP to &e{amount}&a!"
+    success-target: "&aYour tool's EXP was set to &e{amount} &aby an admin!"
+    failure: "&cFailed to set EXP. Make sure a valid GensTool is being held."
+    invalid-exp: "&cInvalid exp amount!"
+    exp-negative: "&cEXP amount must be positive!"
+
+  addexp:
+    usage: "&cUsage: /genstools addexp <amount> [player]"
+    success: "&aAdded &e{amount} &aEXP to tool."
+    success-levelup: "&aAdded &e{amount} &aEXP to tool, it leveled up to &e{level}&a!"
+    success-target: "&aAn admin added &e{amount} &aEXP to your tool."
+    success-target-levelup: "&aAn admin added &e{amount} &aEXP to your tool, it leveled up to &e{level}&a!"
+    failure: "&cFailed to add EXP. Make sure a valid GensTool is being held."
+    invalid-exp: "&cInvalid exp amount!"
+    exp-negative: "&cEXP amount must be positive!"
+
+  info:
+    header: "&6=== Tool Info ==="
+    type: "&eType: &f{type}"
+    level: "&eLevel: &f{level}"
+    exp: "&eEXP: &f{exp}/{required} ({percent}%)"
+    enchants-header: "&eEnchantments:"
+    enchant-item: "&f- {enchant} {level}"
+
+  reload:
+    success: "&aGensTools configuration reloaded!"
+
+  help:
+    header: "&6=== GensTools Commands ==="
+    give: "&e/genstools give <player> <tool> &7- Give a tool to a player"
+    enchant: "&e/genstools enchant <enchant> <level> &7- Add an enchant to held tool"
+    list: "&e/genstools list <tools|enchants> &7- List available tools or enchants"
+    setlevel: "&e/genstools setlevel <level> [player] &7- Set tool level"
+    setexp: "&e/genstools setexp <amount> [player] &7- Set tool EXP"
+    addexp: "&e/genstools addexp <amount> [player] &7- Add EXP to tool"
+    info: "&e/genstools info &7- Show tool info"
+    reload: "&e/genstools reload &7- Reload config"
+    help: "&e/genstools help &7- Show this help message"

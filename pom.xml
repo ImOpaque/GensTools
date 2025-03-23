@@ -6,7 +6,7 @@
 
     <groupId>com.genstools</groupId>
     <artifactId>GensTools</artifactId>
-    <version>0.0.1-ALPHA</version>
+    <version>0.0.9-ALPHA</version>
     <packaging>jar</packaging>
 
     <name>GensTools</name>
@@ -43,6 +43,11 @@
             <url>https://jitpack.io</url>
         </repository>
 
+        <repository>
+            <id>edlicense-repo</id>
+            <url>https://repo.edlicense.com/repository/maven-releases/</url>
+        </repository>
+
         <!-- For PlaceholderAPI if you want to add that support later -->
         <repository>
             <id>placeholderapi</id>
@@ -57,6 +62,13 @@
             <artifactId>paper-api</artifactId>
             <version>1.20.4-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.edwardbelt</groupId>
+            <artifactId>edlicense</artifactId>
+            <version>1.1</version>
+            <scope>compile</scope>
         </dependency>
 
         <dependency>
@@ -79,6 +91,14 @@
             <artifactId>annotations</artifactId>
             <version>24.1.0</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>me.opaque</groupId>
+            <artifactId>genscore</artifactId>
+            <version>1.2.1</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/GensCore-1.2.1.jar</systemPath>
         </dependency>
 
         <!-- Configuration Lib (for advanced config handling if needed) -->

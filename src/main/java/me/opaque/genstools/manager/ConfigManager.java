@@ -20,7 +20,7 @@ public class ConfigManager {
     private final GensTools plugin;
     private FileConfiguration config;
     private FileConfiguration toolsConfig;
-    private FileConfiguration enchantsConfig;
+    public FileConfiguration enchantsConfig;
 
     public ConfigManager(GensTools plugin) {
         this.plugin = plugin;
@@ -175,5 +175,122 @@ public class ConfigManager {
      */
     public String getLevelUpMessage() {
         return config.getString("leveling.message", "&aYour tool leveled up to &e{level}&a!");
+    }
+
+    /**
+     * Reloads all configuration files
+     */
+    public void reloadConfigs() {
+        reloadMainConfig();
+        reloadToolsConfig();
+        reloadEnchantsConfig();
+        loadConfigs();
+
+        plugin.getMenuManager().loadConfig();
+    }
+
+    private void reloadMainConfig() {
+        File configFile = new File(plugin.getDataFolder(), "config.yml");
+        config = YamlConfiguration.loadConfiguration(configFile);
+    }
+
+    private void reloadToolsConfig() {
+        File toolsFile = new File(plugin.getDataFolder(), "tools.yml");
+        toolsConfig = YamlConfiguration.loadConfiguration(toolsFile);
+    }
+
+    private void reloadEnchantsConfig() {
+        File enchantsFile = new File(plugin.getDataFolder(), "enchants.yml");
+        enchantsConfig = YamlConfiguration.loadConfiguration(enchantsFile);
+    }
+
+    /**
+     * Gets the global experience multiplier
+     *
+     * @return The global experience multiplier
+     */
+    public double getGlobalExpMultiplier() {
+        return config.getDouble("leveling.global-exp-multiplier", 1.0);
+    }
+
+    /**
+     * Gets the maximum level tools can reach
+     *
+     * @return The maximum level
+     */
+    public int getMaxLevel() {
+        return config.getInt("leveling.max-level", 100);
+    }
+
+    /**
+     * Gets whether to show an exp action bar message
+     *
+     * @return true if action bar messages should be shown
+     */
+    public boolean isShowExpActionBar() {
+        return config.getBoolean("leveling.show-exp-actionbar", true);
+    }
+
+    /**
+     * Check if numeric enchant display is enabled
+     *
+     * @return true if numeric display is enabled
+     */
+    public boolean useNumericEnchantDisplay() {
+        return config.getBoolean("enchants.use-numbers", true);
+    }
+
+    /**
+     * Get the maximum enchantment level allowed
+     *
+     * @return The maximum enchantment level
+     */
+    public int getMaxEnchantmentLevel() {
+        return config.getInt("enchants.max-level", Integer.MAX_VALUE);
+    }
+
+    public FileConfiguration getEnchantsConfig() {
+        return enchantsConfig;
+    }
+
+    public FileConfiguration getToolsConfig() {
+        return toolsConfig;
+    }
+
+    public FileConfiguration getConfig() {
+        return config;
+    }
+
+    /**
+     * Get whether to show experience gain messages
+     * @return true if exp gain messages should be shown
+     */
+    public boolean isShowExpGainMessages() {
+        return config.getBoolean("experience.show-exp-gain-messages", true);
+    }
+
+    /**
+     * Get the base kill experience per health point
+     * @return the base kill experience per health point
+     */
+    public int getBaseKillExpPerHealth() {
+        return config.getInt("experience.base-kill-exp-per-health", 5);
+    }
+
+    /**
+     * Get the bonus experience for killing a boss/named entity
+     * @return the boss kill bonus experience
+     */
+    public int getBossKillBonus() {
+        return config.getInt("experience.boss-kill-bonus", 500);
+    }
+
+    /**
+     * Get the multiplier for a specific kill type
+     * @param type the kill type (melee, ranged, magic)
+     * @return the multiplier
+     */
+    public double getKillTypeMultiplier(String type) {
+        return config.getDouble("experience.kill-multipliers." + type, 1.0);
     }
 }

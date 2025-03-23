@@ -4,7 +4,6 @@
 settings:
   # Debug mode: Set to true for more detailed console output
   debug: false
-
   # Experience multiplier: Affects how much EXP tools gain
   exp-multiplier: 1.0
 
@@ -20,23 +19,63 @@ settings:
       - t-1000000000000
       - q-1000000000000000
 
+# Enchantment Settings
+enchants:
+  # Display enchantment levels as numbers instead of Roman numerals
+  # true = numeric display (1, 2, 3...)
+  # false = Roman numerals (I, II, III...)
+  use-numbers: true
+
+  # Maximum enchantment level that can be applied
+  # Default: 2147483647 (Integer.MAX_VALUE)
+  max-level: 2147483647
+
+# Experience settings
+experience:
+  # Global experience multiplier (applies to all exp gains)
+  global-multiplier: 1.0
+
+  # Whether to show messages when gaining experience
+  show-exp-gain-messages: true
+
+  # Base experience per health point on kill
+  base-kill-exp-per-health: 5
+
+  # Boss/named entity bonus experience
+  boss-kill-bonus: 500
+
+  # Experience multipliers for different kill types
+  kill-multipliers:
+    melee: 1.0
+    ranged: 0.8
+    magic: 0.9
+
 # Tool Settings
 tool-settings:
   pickaxe:
     exp-values:
       STONE: 1
+      COBBLESTONE: 1
       COAL_ORE: 3
-      IRON_ORE: 5
-      GOLD_ORE: 7
-      DIAMOND_ORE: 10
-      EMERALD_ORE: 15
-      DEEPSLATE: 2
       DEEPSLATE_COAL_ORE: 4
+      IRON_ORE: 5
       DEEPSLATE_IRON_ORE: 6
+      GOLD_ORE: 7
       DEEPSLATE_GOLD_ORE: 8
+      DIAMOND_ORE: 10
       DEEPSLATE_DIAMOND_ORE: 12
+      EMERALD_ORE: 15
       DEEPSLATE_EMERALD_ORE: 18
+      REDSTONE_ORE: 4
+      DEEPSLATE_REDSTONE_ORE: 5
+      LAPIS_ORE: 5
+      DEEPSLATE_LAPIS_ORE: 6
+      COPPER_ORE: 4
+      DEEPSLATE_COPPER_ORE: 5
       ANCIENT_DEBRIS: 20
+      NETHER_GOLD_ORE: 6
+      NETHER_QUARTZ_ORE: 3
+      OBSIDIAN: 8
 
   sword:
     mob-bonuses:
@@ -46,11 +85,31 @@ tool-settings:
       CREEPER: 10
       ENDERMAN: 15
       WITHER_SKELETON: 20
+      PIGLIN: 8
+      ZOMBIFIED_PIGLIN: 10
+      MAGMA_CUBE: 8
+      SLIME: 5
+      BLAZE: 15
+      GHAST: 15
+      WITCH: 18
+      PHANTOM: 20
+      DROWNED: 7
+      STRAY: 7
+      HUSK: 7
+      VINDICATOR: 20
+      EVOKER: 25
+      RAVAGER: 40
+      PILLAGER: 12
+      ELDER_GUARDIAN: 50
+      WARDEN: 150
       WITHER: 100
       ENDER_DRAGON: 200
 
 # Leveling Settings
 leveling:
+  global-exp-multiplier: 1.0
+  max-level: 100
   show-messages: true
   show-effects: true
-  message: "&aYour tool leveled up to &e{level}&a!"
+  show-exp-actionbar: true
+  message: "&aYour &e{tool_type} &aleveled up to &e{level}&a!"

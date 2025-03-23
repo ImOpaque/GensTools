@@ -1,0 +1,267 @@
+tool-gui:
+  enabled: true
+  title: '&6Tool Enchantments'
+  rows: 6
+
+  # Items configuration
+  items:
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      name: ' '
+      lore: []
+
+    tool-info:
+      enabled: true
+      slot: 0
+      material: KNOWLEDGE_BOOK
+      name: '&eTool Information'
+      lore:
+        - '&7Level: &e{level}'
+        - '&7EXP: &a{exp}&7/&a{req_exp}'
+        - '&7Enchantments: &b{enchant_count}'
+
+    tool-display:
+      enabled: true
+      slot: 4
+      glow: true  # Make the tool glow in the menu
+      # No material/name/lore as it uses the actual tool
+
+    reset-enchants:
+      enabled: true
+      slot: 8
+      material: BARRIER
+      name: '&c&lReset Enchantments'
+      lore:
+        - '&7Click to reset all enchantments'
+        - '&7and receive a refund of:'
+        - '&e{refund_shards} Shards'
+        - '&d{refund_runes} Runes'
+        - ''
+        - '&c&lWARNING: This action cannot be undone!'
+      confirm:
+        enabled: true
+        title: '&c&lConfirm Reset'
+        confirm-slot: 11
+        confirm-material: LIME_WOOL
+        confirm-name: '&a&lConfirm Reset'
+        confirm-lore:
+          - '&7Click to confirm resetting all enchantments'
+          - '&7and receive a refund of:'
+          - '&e{refund_shards} Shards'
+          - '&d{refund_runes} Runes'
+
+        cancel-slot: 15
+        cancel-material: RED_WOOL
+        cancel-name: '&c&lCancel'
+        cancel-lore:
+          - '&7Click to cancel and return'
+          - '&7to the enchantment menu'
+
+    prev-page:
+      enabled: true
+      slot: 45
+      material: ARROW
+      name: '&aPrevious Page'
+      lore:
+        - '&7Click to go to the previous page'
+
+    next-page:
+      enabled: true
+      slot: 53
+      material: ARROW
+      name: '&aNext Page'
+      lore:
+        - '&7Click to go to the next page'
+
+    page-indicator:
+      enabled: true
+      slot: 49
+      material: PAPER
+      name: '&ePage {page}/{max_page}'
+      lore: []
+
+  # Enchantment display configuration
+  enchant-display:
+    slots:
+      - 10
+      - 11
+      - 12
+      - 13
+      - 14
+      - 15
+      - 16
+      - 19
+      - 20
+      - 21
+      - 22
+      - 23
+      - 24
+      - 25
+      - 28
+      - 29
+      - 30
+      - 31
+      - 32
+      - 33
+      - 34
+
+    unlocked:
+      name: '&6{enchant_name} {level}'
+      lore:
+        - '&7{enchant_description}'
+        - ''
+        - '&7Current Level: &e{current_level}'
+        - '&7Max Level: &e{max_level}'
+        - ''
+        - '&aLeft-Click &7to upgrade with &eShards'
+        - '&7Cost: &e{shard_cost} Shards'
+        - ''
+        - '&aRight-Click &7to upgrade with &dRunes'
+        - '&7Cost: &d{rune_cost} Runes'
+
+    locked:
+      name: '&6{enchant_name}'
+      lore:
+        - '&7{enchant_description}'
+        - ''
+        - '&7Current Level: &eNot Unlocked'
+        - '&7Max Level: &e{max_level}'
+        - ''
+        - '&aLeft-Click &7to unlock with &eShards'
+        - '&7Cost: &e{shard_cost} Shards'
+        - ''
+        - '&aRight-Click &7to unlock with &dRunes'
+        - '&7Cost: &d{rune_cost} Runes'
+
+    maxed:
+      name: '&6{enchant_name} {level}'
+      lore:
+        - '&7{enchant_description}'
+        - ''
+        - '&7Current Level: &e{current_level}'
+        - '&7Max Level: &e{max_level}'
+        - ''
+        - '&cMaximum level reached'
+
+  # Enchantment-specific icons
+  enchant-icons:
+    explosive:
+      material: TNT
+      glow: true
+
+    auto_smelt:
+      material: FURNACE
+      glow: true
+
+    efficiency:
+      material: DIAMOND_PICKAXE
+      glow: true
+
+    fortune:
+      material: GOLD_INGOT
+      glow: true
+
+    sharpness:
+      material: IRON_SWORD
+      glow: true
+
+    critical_strike:
+      material: REDSTONE
+      glow: true
+
+    life_steal:
+      material: GHAST_TEAR
+      glow: true
+
+    shard_greed:
+      material: EMERALD
+      glow: true
+
+    # Default icon for any enchantment not specified
+    default:
+      locked:
+        material: BOOK
+        glow: false
+      unlocked:
+        material: ENCHANTED_BOOK
+        glow: true
+      maxed:
+        material: KNOWLEDGE_BOOK
+        glow: true
+
+  # Cost configuration
+  cost-multiplier: 1.5
+  enchant-costs:
+    # Mining enchants
+    efficiency:
+      shards: 1000
+      runes: 100
+    fortune:
+      shards: 2000
+      runes: 200
+    explosive:
+      shards: 3000
+      runes: 300
+    auto_smelt:
+      shards: 2500
+      runes: 250
+
+    # Weapon enchants
+    sharpness:
+      shards: 1000
+      runes: 100
+    critical_strike:
+      shards: 2000
+      runes: 200
+    life_steal:
+      shards: 3000
+      runes: 300
+    shard_greed:
+      shards: 5000
+      runes: 500
+
+    # Default costs for any enchant not specifically listed
+    default:
+      shards: 1500
+      runes: 150
+
+  # Refund rate when resetting enchantments (0.0-1.0)
+  refund-rate: 0.7
+
+  # Sound configuration
+  sounds:
+    upgrade-success:
+      sound: ENTITY_PLAYER_LEVELUP
+      volume: 0.5
+      pitch: 1.2
+
+    upgrade-failed:
+      sound: ENTITY_ENDERMAN_TELEPORT
+      volume: 0.5
+      pitch: 0.5
+
+    reset-success:
+      sound: ENTITY_ENDER_DRAGON_GROWL
+      volume: 0.3
+      pitch: 1.5
+
+    reset-cancelled:
+      sound: ENTITY_VILLAGER_NO
+      volume: 0.5
+      pitch: 1.0
+
+    navigation:
+      sound: UI_BUTTON_CLICK
+      volume: 0.5
+      pitch: 1.0
+
+  # Message configuration
+  messages:
+    upgrade-success: '&aUpgraded {enchant_name} to level {level}!'
+    max-level: '&cThis enchantment is already at maximum level!'
+    insufficient-funds: '&cYou don''t have enough {currency}! Need {cost}, have {balance}'
+    payment-failed: '&cFailed to process payment!'
+    upgrade-failed: '&cFailed to upgrade enchantment!'
+    reset-success: '&aAll enchantments have been reset! Refunded &e{refund_shards} Shards &aand &d{refund_runes} Runes&a.'
+    reset-cancelled: '&cEnchantment reset cancelled.'
+    reset-failed: '&cFailed to reset enchantments!'

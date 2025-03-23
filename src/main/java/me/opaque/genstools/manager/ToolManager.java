@@ -57,6 +57,18 @@ public class ToolManager {
         return customEnchants.keySet();
     }
 
+
+    /**
+     * Format the enchantment level for display
+     * Delegates to GensTool for consistency
+     *
+     * @param level The level to format
+     * @return Formatted level display
+     */
+    public String formatEnchantmentLevel(int level) {
+        return GensTool.formatEnchantmentLevel(level);
+    }
+
     public ItemStack createTool(String id, Player player) {
         GensTool prototype = toolPrototypes.get(id);
         if (prototype == null) {
@@ -103,10 +115,13 @@ public class ToolManager {
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
         item.setItemMeta(meta);
 
+        // Apply initial glow effect to the tool
+        GensTool.applyGlow(item);
+
         return item;
     }
 
-    public boolean addEnchantToTool(ItemStack item, String enchantId, int level) {
+    /*public boolean addEnchantToTool(ItemStack item, String enchantId, int level) {
         if (!GensTool.isGensTool(item)) {
             return false;
         }
@@ -138,6 +153,70 @@ public class ToolManager {
         item.setItemMeta(meta);
 
         return true;
+    }*/
+
+    /**
+     * Add an enchantment to a tool with level and compatibility validation
+     *
+     * @param item The tool to enchant
+     * @param enchantId The enchantment ID
+     * @param level The level to apply
+     * @return true if successful
+     */
+    public boolean addEnchantToTool(ItemStack item, String enchantId, int level) {
+        if (!GensTool.isGensTool(item)) {
+            return false;
+        }
+
+        CustomEnchant enchant = customEnchants.get(enchantId);
+        if (enchant == null) {
+            return false;
+        }
+
+        // Validate level
+        if (level <= 0) {
+            return false;
+        }
+
+        // Get the tool object to determine its type
+        String toolId = GensTool.getToolId(item);
+        if (toolId == null) {
+            plugin.getLogger().warning("Failed to get tool ID for compatibility check");
+            return false;
+        }
+
+        GensTool tool = getToolById(toolId);
+        if (tool == null) {
+            plugin.getLogger().warning("Failed to get tool object for ID: " + toolId);
+            return false;
+        }
+
+        // Determine tool type using the EnchantmentApplicability class
+        String toolType = me.opaque.genstools.enchants.EnchantmentApplicability.getToolType(tool);
+
+        // Check compatibility
+        boolean isCompatible = me.opaque.genstools.enchants.EnchantmentApplicability.isApplicable(enchantId, toolType);
+
+        // Log for debugging
+        plugin.getLogger().info("Enchant compatibility check: " + enchantId + " on " + toolType + " = " + isCompatible);
+
+        // If not compatible, don't apply the enchantment
+        if (!isCompatible) {
+            plugin.getLogger().info("Rejected incompatible enchant: " + enchantId + " on tool type: " + toolType);
+            return false;
+        }
+
+        // Cap at max level if configured
+        int maxLevel = plugin.getConfigManager().getMaxEnchantmentLevel();
+        if (level > maxLevel) {
+            level = maxLevel;
+        }
+
+        // Ensure the tool has glow effect
+        GensTool.applyGlow(item);
+
+        // Use the enhanced method with explicit lore update control
+        return GensTool.addEnchantment(item, enchantId, level, true);
     }
 
     private String toRoman(int number) {

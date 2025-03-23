@@ -6,6 +6,8 @@ enchants:
     max-level: 5
     is-treasure: false
     type: explosive
+    applicable-tools:
+      - pickaxe
 
   auto_smelt:
     display-name: "&6Auto Smelt"
@@ -13,6 +15,8 @@ enchants:
     max-level: 3
     is-treasure: false
     type: auto_smelt
+    applicable-tools:
+      - pickaxe
 
   critical_strike:
     display-name: "&4Critical Strike"
@@ -20,6 +24,8 @@ enchants:
     max-level: 5
     is-treasure: false
     type: critical_strike
+    applicable-tools:
+      - sword
 
   life_steal:
     display-name: "&aLife Steal"
@@ -27,3 +33,30 @@ enchants:
     max-level: 3
     is-treasure: false
     type: life_steal
+    applicable-tools:
+      - sword
+
+  shard_greed:
+    display-name: "&6Shard Greed"
+    description: "&7Chance to earn shards when killing mobs"
+    max-level: 5
+    is-treasure: false
+    type: shard_greed
+    applicable-tools:
+      - sword
+
+    # Chance settings
+    base-chance: 0.05         # 5% base chance at level 1
+    chance-per-level: 0.05    # 5% additional chance per level
+
+    # Multiplier settings
+    base-multiplier: 1.5      # Base multiplier for shard rewards
+    multiplier-per-level: 0.1 # Additional multiplier per level
+
+    # Shard calculation settings
+    base-shards-per-mob: 1.0  # Base number of shards per mob (if use-entity-health is false)
+    use-entity-health: true   # Whether to use entity's max health to determine shards
+
+    # Message settings
+    enable-messages: true
+    activation-message: "&6&lSHARD GREED ACTIVATED: &7Gained &e{shards} shards!"
