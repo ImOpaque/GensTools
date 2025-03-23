@@ -342,17 +342,86 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
                 if (!hasPermission(sender, "genstools.command.reload")) return true;
 
                 plugin.getConfigManager().reloadConfigs();
-                sender.sendMessage(ChatColor.GREEN + "GensTools configuration reloaded!");
+                plugin.getLoreManager().reloadConfig();
+
+                sender.sendMessage(plugin.getMessageManager().getMessage("reload.success"));
                 return true;
 
             case "help":
                 sendHelp(sender);
                 return true;
 
+            case "persistence":
+                handlePersistenceCommands(sender, args);
+                return true;
+
             default:
                 sender.sendMessage(ChatColor.RED + "Unknown command. Type /genstools help for help.");
                 return true;
         }
+    }
+
+    private void handlePersistenceCommands(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            showPersistenceHelp(sender);
+            return;
+        }
+
+        switch (args[1].toLowerCase()) {
+            case "save":
+                handleSaveCommand(sender, args);
+                break;
+            case "reload":
+                handleReloadCommand(sender, args);
+                break;
+            case "backup":
+                handleBackupCommand(sender, args);
+                break;
+            default:
+                showPersistenceHelp(sender);
+                break;
+        }
+    }
+
+    private void handleSaveCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("genstools.admin.persistence.save")) {
+            sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
+            return;
+        }
+
+        GensTools.getInstance().getToolPersistenceManager().saveAllPendingData();
+        sender.sendMessage(ChatColor.GREEN + "All pending tool data has been saved.");
+    }
+
+    private void handleReloadCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("genstools.admin.persistence.reload")) {
+            sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
+            return;
+        }
+
+        GensTools.getInstance().getToolPersistenceManager().reload();
+        sender.sendMessage(ChatColor.GREEN + "Tool persistence system has been reloaded.");
+    }
+
+    private void handleBackupCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("genstools.admin.persistence.backup")) {
+            sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
+            return;
+        }
+
+        boolean success = GensTools.getInstance().getToolPersistenceManager().getStorage().createBackup();
+        if (success) {
+            sender.sendMessage(ChatColor.GREEN + "Tool data backup created successfully.");
+        } else {
+            sender.sendMessage(ChatColor.RED + "Failed to create tool data backup. Check console for details.");
+        }
+    }
+
+    private void showPersistenceHelp(CommandSender sender) {
+        sender.sendMessage(ChatColor.GOLD + "=== GensTools Persistence Commands ===");
+        sender.sendMessage(ChatColor.YELLOW + "/genstools persistence save " + ChatColor.GRAY + "- Save all pending tool data");
+        sender.sendMessage(ChatColor.YELLOW + "/genstools persistence reload " + ChatColor.GRAY + "- Reload the persistence system");
+        sender.sendMessage(ChatColor.YELLOW + "/genstools persistence backup " + ChatColor.GRAY + "- Create a backup of all tool data");
     }
 
     private void sendHelp(CommandSender sender) {

@@ -539,6 +539,7 @@ public class ToolEnchantMenu extends Menu {
         // Update lore once after all removals
         GensTool.updateEnchantmentLore(toolItem);
 
+        plugin.getToolPersistenceManager().handleToolUpdate(player, toolItem);
         // Clear the local enchants map
         currentEnchants.clear();
 
@@ -835,6 +836,8 @@ public class ToolEnchantMenu extends Menu {
                 "{enchant_name}", enchant.getDisplayName(),
                 "{level}", GensTool.formatEnchantmentLevel(currentLevel + 1)
         ));
+
+        plugin.getToolPersistenceManager().handleToolUpdate(player, toolItem);
 
         // Rebuild the menu to reflect the updated enchantment level
         Bukkit.getScheduler().runTask(plugin, this::build);

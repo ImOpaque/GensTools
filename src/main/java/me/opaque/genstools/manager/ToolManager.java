@@ -91,32 +91,27 @@ public class ToolManager {
         // Set name
         meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', prototype.getDisplayName()));
 
-        // Set lore
-        List<String> lore = new ArrayList<>(prototype.getLore());
-        for (int i = 0; i < lore.size(); i++) {
-            lore.set(i, ChatColor.translateAlternateColorCodes('&', lore.get(i)));
-        }
-        lore.add(ChatColor.GRAY + "Level: " + ChatColor.YELLOW + "1");
-        lore.add(ChatColor.GRAY + "EXP: " + ChatColor.AQUA + "0/1000");
-        meta.setLore(lore);
-
         // Store data
         PersistentDataContainer container = meta.getPersistentDataContainer();
         container.set(GensTool.KEY_TOOL_ID, PersistentDataType.STRING, id);
         container.set(GensTool.KEY_LEVEL, PersistentDataType.INTEGER, 1);
         container.set(GensTool.KEY_EXPERIENCE, PersistentDataType.INTEGER, 0);
 
-        // Apply enchantments
-        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        item.setItemMeta(meta);
-
-        // Make unbreakable
+        // Apply metadata
         meta.setUnbreakable(true);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
 
         // Apply initial glow effect to the tool
         GensTool.applyGlow(item);
+
+        // Update the lore using the LoreManager
+        plugin.getLoreManager().updateToolLore(item);
+
+        if (player != null) {
+            plugin.getToolPersistenceManager().registerTool(player, item);
+        }
 
         return item;
     }
@@ -262,6 +257,7 @@ public class ToolManager {
             player.getInventory().addItem(toolItem);
         }
 
+        plugin.getToolPersistenceManager().registerTool(player, toolItem);
         return true;
     }
 }

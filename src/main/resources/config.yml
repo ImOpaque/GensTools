@@ -19,6 +19,25 @@ settings:
       - t-1000000000000
       - q-1000000000000000
 
+# Persistence system settings
+persistence:
+  # How often to auto-save tool data (in seconds)
+  auto-save-interval: 300
+
+  # Debug mode for additional logging
+  debug-mode: false
+
+  # Backup settings
+  backups:
+    # Create backups automatically
+    enabled: true
+
+    # How often to create backups (in minutes)
+    interval: 60
+
+    # Maximum number of backups to keep
+    max-backups: 10
+
 # Enchantment Settings
 enchants:
   # Display enchantment levels as numbers instead of Roman numerals

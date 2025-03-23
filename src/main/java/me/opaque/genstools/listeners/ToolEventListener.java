@@ -72,6 +72,8 @@ public class ToolEventListener implements Listener {
         if (leveledUp) {
             handleLevelUp(player, item);
         }
+
+        plugin.getToolPersistenceManager().handleToolUpdate(player, item);
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -124,6 +126,8 @@ public class ToolEventListener implements Listener {
         if (leveledUp) {
             handleLevelUp(player, item);
         }
+
+        plugin.getToolPersistenceManager().handleToolUpdate(player, item);
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -184,6 +188,8 @@ public class ToolEventListener implements Listener {
         if (leveledUp) {
             handleLevelUp(player, item);
         }
+
+        plugin.getToolPersistenceManager().handleToolUpdate(player, item);
 
         // Optionally show the player how much XP they gained
         if (plugin.getConfigManager().isShowExpGainMessages()) {

@@ -4,9 +4,12 @@ import me.opaque.genscore.GensCore;
 import me.opaque.genstools.commands.GensToolsCommand;
 import me.opaque.genstools.enchants.EnchantmentApplicability;
 import me.opaque.genstools.gui.MenuManager;
+import me.opaque.genstools.listeners.PersistenceListener;
 import me.opaque.genstools.listeners.ToolEventListener;
 import me.opaque.genstools.manager.ConfigManager;
 import me.opaque.genstools.manager.ToolManager;
+import me.opaque.genstools.persistence.ToolPersistenceManager;
+import me.opaque.genstools.utils.LoreManager;
 import me.opaque.genstools.utils.MessageManager;
 import me.opaque.genstools.utils.Utils;
 import org.bukkit.Bukkit;
@@ -21,6 +24,8 @@ public class GensTools extends JavaPlugin {
     private MessageManager messageManager;
     private GensCore gensCoreAPI;
     private MenuManager menuManager;
+    private LoreManager loreManager;
+    private ToolPersistenceManager toolPersistenceManager;
 
     @Override
     public void onEnable() {
@@ -37,9 +42,13 @@ public class GensTools extends JavaPlugin {
 
         // Initialize the managers in the correct order
         toolManager = new ToolManager(this);
+        loreManager = new LoreManager(this);
         configManager = new ConfigManager(this);
         messageManager = new MessageManager(this);
         menuManager = new MenuManager(this);
+
+        // Initialize persistence system
+        toolPersistenceManager = new ToolPersistenceManager(this);
 
         EnchantmentApplicability.initialize();
 
@@ -48,12 +57,18 @@ public class GensTools extends JavaPlugin {
 
         // Register event listeners
         getServer().getPluginManager().registerEvents(new ToolEventListener(this), this);
+        getServer().getPluginManager().registerEvents(new PersistenceListener(this), this);
 
         getLogger().info(Utils.colorize("&9&lGensTools has been enabled!"));
     }
 
     @Override
     public void onDisable() {
+        // Shutdown persistence system
+        if (toolPersistenceManager != null) {
+            toolPersistenceManager.shutdown();
+        }
+
         getLogger().info("GensTools has been disabled!");
     }
 
@@ -83,5 +98,13 @@ public class GensTools extends JavaPlugin {
 
     public FileConfiguration getGuiConfig() {
         return menuManager.getGuiConfig();
+    }
+
+    public LoreManager getLoreManager() {
+        return loreManager;
+    }
+
+    public ToolPersistenceManager getToolPersistenceManager() {
+        return toolPersistenceManager;
     }
 }

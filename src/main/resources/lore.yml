@@ -1,0 +1,46 @@
+# Lore formatting configuration for GensTools
+# All sections support color codes with '&' symbol
+
+# Tool display settings
+tool-display:
+  # Format for custom lore from the tools.yml file
+  # This will be inserted at the top of the lore
+  custom-lore:
+    enabled: true
+    # Whether to colorize the custom lore lines
+    colorize: true
+    # Whether to add a space after custom lore
+    add-spacer: true
+
+# Enchantments display settings
+enchantments:
+  # Whether to show enchantments section
+  enabled: true
+  # Header for enchantments section
+  header: "&8❖ &7Enchantments:"
+  # Format for each enchantment entry
+  format: " &8• &7{enchant_name} {enchant_level}"
+  # What to display when no enchantments exist
+  empty-value: " &8• &7None"
+  # Whether to add space after enchantments section
+  add-spacer: true
+
+# Stats display settings
+stats:
+  # Whether to show the stats section
+  enabled: true
+  # Header for stats section
+  header: "&8❖ &7Stats:"
+  # Format for level display
+  level-format: " &8• &7Level: &e{level}"
+  # Format for experience display
+  exp-format: " &8• &7EXP: &b{current_exp}&7/&b{required_exp} &7(&b{exp_percentage}%&7)"
+  # Whether to add space after stats section
+  add-spacer: true
+
+# Footer text (optional)
+footer:
+  enabled: true
+  lines:
+    - "&8&m----------------"
+    - "&8❖ &7{material} Tool"

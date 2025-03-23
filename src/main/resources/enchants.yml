@@ -60,3 +60,28 @@ enchants:
     # Message settings
     enable-messages: true
     activation-message: "&6&lSHARD GREED ACTIVATED: &7Gained &e{shards} shards!"
+
+  shard_finder:
+    display-name: "&6ꜱʜᴀʀᴅ ꜰɪɴᴅᴇʀ"
+    description: "&7Chance to earn shards when mining ores"
+    max-level: 50
+    is-treasure: false
+    type: shard_finder
+    applicable-tools:
+      - pickaxe
+
+    # Chance settings
+    base-chance: 0.05         # 0.05 -> 5% base chance at level 1
+    chance-per-level: 0.01    # 5% additional chance per level
+
+    # Multiplier settings
+    base-multiplier: 1.5      # Base multiplier for shard rewards
+    multiplier-per-level: 0.1 # Additional multiplier per level
+
+    # Shard calculation settings
+    base-shards-per-mob: 1.0  # Base number of shards per mob (if use-entity-health is false)
+    use-entity-health: true   # Whether to use entity's max health to determine shards
+
+    # Message settings
+    enable-messages: true
+    activation-message: "&6&lSHARD FINDER ACTIVATED: &7Gained &e{shards} shards!"

@@ -12,8 +12,8 @@ tool-gui:
 
     tool-info:
       enabled: true
-      slot: 0
-      material: KNOWLEDGE_BOOK
+      slot: 4
+      material: NETHER_STAR
       name: '&eTool Information'
       lore:
         - '&7Level: &e{level}'
@@ -22,13 +22,13 @@ tool-gui:
 
     tool-display:
       enabled: true
-      slot: 4
+      slot: 49
       glow: true  # Make the tool glow in the menu
       # No material/name/lore as it uses the actual tool
 
     reset-enchants:
       enabled: true
-      slot: 8
+      slot: 53
       material: BARRIER
       name: '&c&lReset Enchantments'
       lore:
@@ -59,7 +59,7 @@ tool-gui:
 
     prev-page:
       enabled: true
-      slot: 45
+      slot: 0 #45
       material: ARROW
       name: '&aPrevious Page'
       lore:
@@ -67,7 +67,7 @@ tool-gui:
 
     next-page:
       enabled: true
-      slot: 53
+      slot: 8 #53
       material: ARROW
       name: '&aNext Page'
       lore:

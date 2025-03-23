@@ -187,6 +187,7 @@ public class ConfigManager {
         loadConfigs();
 
         plugin.getMenuManager().loadConfig();
+        plugin.getLoreManager().reloadConfig();
     }
 
     private void reloadMainConfig() {
