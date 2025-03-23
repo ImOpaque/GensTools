@@ -11,11 +11,11 @@ import me.opaque.genstools.manager.ToolManager;
 import me.opaque.genstools.persistence.ToolPersistenceManager;
 import me.opaque.genstools.utils.LoreManager;
 import me.opaque.genstools.utils.MessageManager;
+import me.opaque.genstools.utils.NumberFormatter;
 import me.opaque.genstools.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
-import static com.edwardbelt.edlicense.Main.checkLicense;
 
 public class GensTools extends JavaPlugin {
     private static GensTools instance;
@@ -26,6 +26,7 @@ public class GensTools extends JavaPlugin {
     private MenuManager menuManager;
     private LoreManager loreManager;
     private ToolPersistenceManager toolPersistenceManager;
+    private NumberFormatter numberFormatter;
 
     @Override
     public void onEnable() {
@@ -46,6 +47,7 @@ public class GensTools extends JavaPlugin {
         configManager = new ConfigManager(this);
         messageManager = new MessageManager(this);
         menuManager = new MenuManager(this);
+        numberFormatter = new NumberFormatter(this);
 
         // Initialize persistence system
         toolPersistenceManager = new ToolPersistenceManager(this);
@@ -106,5 +108,9 @@ public class GensTools extends JavaPlugin {
 
     public ToolPersistenceManager getToolPersistenceManager() {
         return toolPersistenceManager;
+    }
+
+    public NumberFormatter getNumberFormatter() {
+        return numberFormatter;
     }
 }

@@ -19,7 +19,6 @@ import org.bukkit.inventory.ItemStack;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.UUID;
 
 /**
  * Manager for all GensTools GUI menus
@@ -133,8 +132,10 @@ public class MenuManager implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        Menu menu = Menu.getOpenMenu(player.getUniqueId());
-        if (menu != null && event.getView().getTopInventory().equals(menu.inventory)) {
+        // Get the active menu for this player
+        Menu menu = Menu.getActiveMenu(player.getUniqueId());
+
+        if (menu != null && event.getInventory().equals(menu.getInventory())) {
             menu.handleClick(event);
         }
     }
@@ -146,9 +147,10 @@ public class MenuManager implements Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
 
-        Menu menu = Menu.getOpenMenu(player.getUniqueId());
-        if (menu != null && event.getInventory().equals(menu.inventory)) {
-            Menu.removeOpenMenu(player.getUniqueId());
+        // Remove active menu on close
+        Menu menu = Menu.getActiveMenu(player.getUniqueId());
+        if (menu != null && event.getInventory().equals(menu.getInventory())) {
+            Menu.activeMenus.remove(player.getUniqueId());
         }
     }
 
@@ -157,6 +159,6 @@ public class MenuManager implements Listener {
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        Menu.removeOpenMenu(event.getPlayer().getUniqueId());
+        Menu.cleanupPlayer(event.getPlayer().getUniqueId());
     }
 }

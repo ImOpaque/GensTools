@@ -16,16 +16,16 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class ToolManager {
     private final GensTools plugin;
     private final Map<String, GensTool> toolPrototypes;
     private final Map<String, CustomEnchant> customEnchants;
+    // Map to store disabled messages preferences (player UUID -> set of enchant IDs)
+    private final Map<UUID, Set<String>> disabledMessages = new HashMap<>();
+    // Map to store disabled enchants preferences (player UUID -> map of tool ID to set of enchant IDs)
+    private final Map<UUID, Map<String, Set<String>>> disabledEnchants = new HashMap<>();
 
     public ToolManager(GensTools plugin) {
         this.plugin = plugin;
@@ -259,5 +259,88 @@ public class ToolManager {
 
         plugin.getToolPersistenceManager().registerTool(player, toolItem);
         return true;
+    }
+
+    /**
+     * Check if a player has disabled messages for an enchantment
+     * @param playerUuid The player UUID
+     * @param enchantId The enchantment ID
+     * @return true if messages are disabled, false otherwise
+     */
+    public boolean hasDisabledMessages(UUID playerUuid, String enchantId) {
+        Set<String> disabled = disabledMessages.get(playerUuid);
+        return disabled != null && disabled.contains(enchantId);
+    }
+
+    /**
+     * Disable messages for an enchantment
+     * @param playerUuid The player UUID
+     * @param enchantId The enchantment ID
+     */
+    public void disableMessages(UUID playerUuid, String enchantId) {
+        disabledMessages.computeIfAbsent(playerUuid, k -> new HashSet<>()).add(enchantId);
+    }
+
+    /**
+     * Enable messages for an enchantment
+     * @param playerUuid The player UUID
+     * @param enchantId The enchantment ID
+     */
+    public void enableMessages(UUID playerUuid, String enchantId) {
+        Set<String> disabled = disabledMessages.get(playerUuid);
+        if (disabled != null) {
+            disabled.remove(enchantId);
+        }
+    }
+
+    /**
+     * Check if a player has disabled an enchantment on a tool
+     * @param playerUuid The player UUID
+     * @param enchantId The enchantment ID
+     * @param tool The tool item
+     * @return true if the enchantment is disabled, false otherwise
+     */
+    public boolean hasDisabledEnchant(UUID playerUuid, String enchantId, ItemStack tool) {
+        String toolId = GensTool.getToolId(tool);
+        if (toolId == null) return false;
+
+        Map<String, Set<String>> toolMap = disabledEnchants.get(playerUuid);
+        if (toolMap == null) return false;
+
+        Set<String> enchants = toolMap.get(toolId);
+        return enchants != null && enchants.contains(enchantId);
+    }
+
+    /**
+     * Disable an enchantment on a tool
+     * @param playerUuid The player UUID
+     * @param enchantId The enchantment ID
+     * @param tool The tool item
+     */
+    public void disableEnchant(UUID playerUuid, String enchantId, ItemStack tool) {
+        String toolId = GensTool.getToolId(tool);
+        if (toolId == null) return;
+
+        Map<String, Set<String>> toolMap = disabledEnchants.computeIfAbsent(playerUuid, k -> new HashMap<>());
+        toolMap.computeIfAbsent(toolId, k -> new HashSet<>()).add(enchantId);
+    }
+
+    /**
+     * Enable an enchantment on a tool
+     * @param playerUuid The player UUID
+     * @param enchantId The enchantment ID
+     * @param tool The tool item
+     */
+    public void enableEnchant(UUID playerUuid, String enchantId, ItemStack tool) {
+        String toolId = GensTool.getToolId(tool);
+        if (toolId == null) return;
+
+        Map<String, Set<String>> toolMap = disabledEnchants.get(playerUuid);
+        if (toolMap == null) return;
+
+        Set<String> enchants = toolMap.get(toolId);
+        if (enchants != null) {
+            enchants.remove(enchantId);
+        }
     }
 }

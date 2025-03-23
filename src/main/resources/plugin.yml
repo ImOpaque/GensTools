@@ -5,7 +5,9 @@ authors: [ Opaque ]
 api-version: '1.21'
 softdepend:
   - PlaceholderAPI
-depend: [GensCore]
+depend:
+  - GensCore
+  - ProtocolLib
 description: Custom tools plugin for Minecraft Gens gamemode
 
 commands:

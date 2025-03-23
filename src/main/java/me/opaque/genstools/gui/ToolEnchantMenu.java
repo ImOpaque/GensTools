@@ -5,6 +5,8 @@ import me.opaque.genstools.GensTools;
 import me.opaque.genstools.enchants.CustomEnchant;
 import me.opaque.genstools.enchants.EnchantmentApplicability;
 import me.opaque.genstools.tools.GensTool;
+import me.opaque.genstools.utils.NumberFormatter;
+import me.opaque.genstools.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -35,6 +37,7 @@ public class ToolEnchantMenu extends Menu {
     private final Map<String, Integer> currentEnchants;
     private int page = 0;
     private boolean isConfirmingReset = false;
+    private final NumberFormatter formatter;
 
     // Configuration
     private final String title;
@@ -61,6 +64,7 @@ public class ToolEnchantMenu extends Menu {
         this.toolId = GensTool.getToolId(toolItem);
         this.applicableEnchants = EnchantmentApplicability.getApplicableEnchants(toolItem);
         this.currentEnchants = GensTool.getEnchantments(toolItem);
+        this.formatter = plugin.getNumberFormatter();
 
         // Load configuration
         this.title = plugin.getGuiConfig().getString("tool-gui.title", "&6Tool Enchantments");
@@ -304,13 +308,37 @@ public class ToolEnchantMenu extends Menu {
         }
     }
 
+    /**
+     * Add this method to your ToolEnchantMenu class to refresh enchantment data
+     */
+    public void refreshEnchantmentData() {
+        // Reload the current enchantments from the tool
+        Map<String, Integer> refreshedEnchants = GensTool.getEnchantments(toolItem);
+
+        // Clear and update the map
+        this.currentEnchants.clear();
+        this.currentEnchants.putAll(refreshedEnchants);
+
+        Utils.logDebug("Refreshed enchantment data in ToolEnchantMenu: " + currentEnchants);
+    }
+
     @Override
     protected void build() {
+        Utils.logDebug("Building " + this.getClass().getSimpleName() + " for " + player.getName());
         if (isConfirmingReset) {
             buildResetConfirmation();
         } else {
             buildMainMenu();
         }
+
+        // At the end, count items
+        int itemCount = 0;
+        for (int i = 0; i < inventory.getSize(); i++) {
+            if (inventory.getItem(i) != null) {
+                itemCount++;
+            }
+        }
+        Utils.logDebug(this.getClass().getSimpleName() + " built with " + itemCount + " items");
     }
 
     /**
@@ -361,8 +389,8 @@ public class ToolEnchantMenu extends Menu {
         List<String> lore = new ArrayList<>();
         for (String line : infoInfo.lore) {
             line = line.replace("{level}", String.valueOf(level))
-                    .replace("{exp}", String.valueOf(exp))
-                    .replace("{req_exp}", String.valueOf(reqExp))
+                    .replace("{exp}", formatter.format(exp))  // Format with NumberFormatter
+                    .replace("{req_exp}", formatter.format(reqExp))  // Format with NumberFormatter
                     .replace("{enchant_count}", String.valueOf(currentEnchants.size()));
             lore.add(line);
         }
@@ -396,8 +424,8 @@ public class ToolEnchantMenu extends Menu {
             // Replace placeholders in lore
             List<String> lore = new ArrayList<>();
             for (String line : resetInfo.lore) {
-                line = line.replace("{refund_shards}", String.valueOf(refundShards))
-                        .replace("{refund_runes}", String.valueOf(refundRunes));
+                line = line.replace("{refund_shards}", formatter.format(refundShards))  // Format with NumberFormatter
+                        .replace("{refund_runes}", formatter.format(refundRunes));  // Format with NumberFormatter
                 lore.add(line);
             }
 
@@ -485,8 +513,8 @@ public class ToolEnchantMenu extends Menu {
             // Replace placeholders in lore
             List<String> lore = new ArrayList<>();
             for (String line : confirmInfo.lore) {
-                line = line.replace("{refund_shards}", String.valueOf(refundShards))
-                        .replace("{refund_runes}", String.valueOf(refundRunes));
+                line = line.replace("{refund_shards}", formatter.format(refundShards))  // Format with NumberFormatter
+                        .replace("{refund_runes}", formatter.format(refundRunes));  // Format with NumberFormatter
                 lore.add(line);
             }
 
@@ -550,8 +578,8 @@ public class ToolEnchantMenu extends Menu {
         if (success) {
             playSound("reset-success");
             sendMessage("reset-success", Map.of(
-                    "{refund_shards}", String.valueOf(refundShards),
-                    "{refund_runes}", String.valueOf(refundRunes)
+                    "{refund_shards}", formatter.format(refundShards),  // Format with NumberFormatter
+                    "{refund_runes}", formatter.format(refundRunes)  // Format with NumberFormatter
             ));
         } else {
             playSound("reset-failed");
@@ -689,8 +717,8 @@ public class ToolEnchantMenu extends Menu {
                     .replace("{enchant_name}", enchant.getDisplayName())
                     .replace("{current_level}", currentLevel > 0 ? String.valueOf(currentLevel) : "Not Unlocked")
                     .replace("{max_level}", String.valueOf(maxLevel))
-                    .replace("{shard_cost}", String.valueOf(shardCost))
-                    .replace("{rune_cost}", String.valueOf(runeCost))
+                    .replace("{shard_cost}", formatter.format(shardCost))  // Format with NumberFormatter
+                    .replace("{rune_cost}", formatter.format(runeCost))    // Format with NumberFormatter
                     .replace("{level}", currentLevel > 0 ? GensTool.formatEnchantmentLevel(currentLevel) : "");
             lore.add(line);
         }
@@ -716,16 +744,13 @@ public class ToolEnchantMenu extends Menu {
         // Create the item
         ItemStack item = createEnchantItem(material, name, lore, shouldGlow);
 
-        // Set with click handler
         setItem(slot, item, event -> {
-            if (currentLevel >= maxLevel) {
-                playSound("upgrade-failed");
-                sendMessage("max-level", Map.of("{enchant_name}", enchant.getDisplayName()));
-                return;
-            }
+            // Play navigation sound
+            playSound("navigation");
 
-            boolean isShards = event.getClick() != ClickType.RIGHT;
-            handleEnchantUpgrade(enchantId, isShards);
+            // Create new menu and switch to it (preserves cursor)
+            EnchantDetailMenu detailMenu = new EnchantDetailMenu(plugin, player, toolItem, enchantId, this);
+            switchTo(detailMenu);
         });
     }
 
@@ -793,8 +818,8 @@ public class ToolEnchantMenu extends Menu {
             String currency = isShards ? "Shards" : "Runes";
             sendMessage("insufficient-funds", Map.of(
                     "{currency}", currency,
-                    "{cost}", String.valueOf(cost),
-                    "{balance}", String.valueOf(balance)
+                    "{cost}", formatter.format(cost),       // Format with NumberFormatter
+                    "{balance}", formatter.format(balance)  // Format with NumberFormatter
             ));
             return;
         }

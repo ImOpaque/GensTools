@@ -255,6 +255,100 @@ tool-gui:
       volume: 0.5
       pitch: 1.0
 
+# Detailed enchantment menu configuration
+enchant-detail:
+  title: '&6Enchantment: &e{enchant_name}'
+  rows: 5
+
+  filler:
+    material: GRAY_STAINED_GLASS_PANE
+
+  enchant-info:
+    slot: 4
+    material: ENCHANTED_BOOK
+    name: '&6{enchant_name} {level}'
+    lore:
+      - '&7{enchant_description}'
+      - ''
+      - '&7Current Level: &e{current_level}'
+      - '&7Max Level: &e{max_level}'
+      - ''
+      - '&7Choose an upgrade option below'
+      - '&7or use max upgrade button.'
+
+  upgrade-options:
+    start-slot: 10
+    name: '&a+{increment} Levels'
+    lore:
+      - '&7Increase enchantment by &e{increment} &7levels'
+      - ''
+      - '&aLeft-Click &7to upgrade with &eShards'
+      - '&7Cost: &e{shard_cost} Shards'
+      - ''
+      - '&aRight-Click &7to upgrade with &dRunes'
+      - '&7Cost: &d{rune_cost} Runes'
+
+    # Materials for different increment values
+    materials:
+      1: MAGMA_CREAM
+      10: MAGMA_CREAM
+      50: MAGMA_CREAM
+      64: MAGMA_CREAM
+      1000: MAGMA_CREAM
+
+    # Default material if specific increment not configured
+    material: MAGMA_CREAM
+
+  tool-display:
+    slot: 31
+
+  back-button:
+    slot: 36
+    material: ARROW
+    name: '&cBack'
+    lore:
+      - '&7Click to go back to the'
+      - '&7enchantment menu'
+
+  message-toggle:
+    enabled: true
+    slot: 19
+    enabled-material: OAK_SIGN
+    disabled-material: OAK_SIGN
+    enabled-name: '&aMessages: &eEnabled'
+    disabled-name: '&aMessages: &cDisabled'
+    enabled-lore:
+      - '&7Click to disable enchantment'
+      - '&7proc messages.'
+    disabled-lore:
+      - '&7Click to enable enchantment'
+      - '&7proc messages.'
+
+  enchant-toggle:
+    enabled: true
+    slot: 25
+    enabled-material: LIME_DYE
+    disabled-material: GRAY_DYE
+    enabled-name: '&aEnchant: &eEnabled'
+    disabled-name: '&aEnchant: &cDisabled'
+    enabled-lore:
+      - '&7Click to disable this enchantment'
+      - '&7functionality.'
+    disabled-lore:
+      - '&7Click to enable this enchantment'
+      - '&7functionality.'
+
+  max-upgrade:
+    slot: 22
+    material: HOPPER
+    name: '&aMax Upgrade'
+    lore:
+      - '&7Upgrade to the maximum level'
+      - '&7you can afford'
+      - ''
+      - '&aLeft-Click &7to use &eShards'
+      - '&aRight-Click &7to use &dRunes'
+
   # Message configuration
   messages:
     upgrade-success: '&aUpgraded {enchant_name} to level {level}!'
