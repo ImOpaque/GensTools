@@ -18,18 +18,28 @@ public class EnchantFactory {
      * @param description The description of the enchantment
      * @param maxLevel The maximum level for the enchantment
      * @param isTreasure Whether this is a treasure enchantment
+     * @param currencyType The currency type for this enchantment (SHARDS or RUNES)
      * @return A CustomEnchant instance, or null if the type is unknown
      */
     public static CustomEnchant createEnchant(String type, String id, String displayName,
-                                              String description, int maxLevel, boolean isTreasure) {
+                                              String description, int maxLevel, boolean isTreasure,
+                                              CustomEnchant.CurrencyType currencyType) {
         return switch (type.toLowerCase()) {
-            case "explosive" -> new ExplosiveEnchant(id, displayName, description, maxLevel, isTreasure);
-            case "auto_smelt" -> new AutoSmeltEnchant(id, displayName, description, maxLevel, isTreasure);
-            case "critical_strike" -> new CriticalStrikeEnchant(id, displayName, description, maxLevel, isTreasure);
-            case "life_steal" -> new LifeStealEnchant(id, displayName, description, maxLevel, isTreasure);
-            case "shard_greed" -> new ShardGreedEnchant(id, displayName, description, maxLevel, isTreasure);
-            case "shard_finder" -> new ShardFinderEnchant(id, displayName, description, maxLevel, isTreasure);
+            case "explosive" -> new ExplosiveEnchant(id, displayName, description, maxLevel, isTreasure, currencyType);
+            case "auto_smelt" -> new AutoSmeltEnchant(id, displayName, description, maxLevel, isTreasure, currencyType);
+            case "critical_strike" -> new CriticalStrikeEnchant(id, displayName, description, maxLevel, isTreasure, currencyType);
+            case "life_steal" -> new LifeStealEnchant(id, displayName, description, maxLevel, isTreasure, currencyType);
+            case "shard_greed" -> new ShardGreedEnchant(id, displayName, description, maxLevel, isTreasure, currencyType);
+            case "shard_finder" -> new ShardFinderEnchant(id, displayName, description, maxLevel, isTreasure, currencyType);
             default -> null;
         };
+    }
+
+    /**
+     * Overloaded method for backward compatibility
+     */
+    public static CustomEnchant createEnchant(String type, String id, String displayName,
+                                              String description, int maxLevel, boolean isTreasure) {
+        return createEnchant(type, id, displayName, description, maxLevel, isTreasure, CustomEnchant.CurrencyType.SHARDS);
     }
 }

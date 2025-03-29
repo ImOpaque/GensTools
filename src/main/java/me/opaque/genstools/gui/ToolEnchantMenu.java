@@ -454,19 +454,32 @@ public class ToolEnchantMenu extends Menu {
             String enchantId = entry.getKey();
             int level = entry.getValue();
 
-            // Get base costs from the loaded maps
-            long baseCostShards = baseShardCosts.getOrDefault(enchantId,
-                    baseShardCosts.getOrDefault("default", 1000L));
-            long baseCostRunes = baseRuneCosts.getOrDefault(enchantId,
-                    baseRuneCosts.getOrDefault("default", 100L));
+            // Get the enchant to determine its currency type
+            CustomEnchant enchant = plugin.getToolManager().getEnchantById(enchantId);
+            if (enchant == null) continue;
+
+            // Determine if this enchant uses shards or runes
+            boolean useShards = enchant.getCurrencyType() == CustomEnchant.CurrencyType.SHARDS;
+
+            // Get base cost for the appropriate currency
+            long baseCost;
+            if (useShards) {
+                baseCost = baseShardCosts.getOrDefault(enchantId,
+                        baseShardCosts.getOrDefault("default", 1000L));
+            } else {
+                baseCost = baseRuneCosts.getOrDefault(enchantId,
+                        baseRuneCosts.getOrDefault("default", 100L));
+            }
 
             // Sum up costs for each level
             for (int i = 1; i <= level; i++) {
-                long levelShardCost = (long) (baseCostShards * Math.pow(costMultiplier, i - 1));
-                long levelRuneCost = (long) (baseCostRunes * Math.pow(costMultiplier, i - 1));
+                long levelCost = (long) (baseCost * Math.pow(costMultiplier, i - 1));
 
-                totalShards += levelShardCost;
-                totalRunes += levelRuneCost;
+                if (useShards) {
+                    totalShards += levelCost;
+                } else {
+                    totalRunes += levelCost;
+                }
             }
         }
 
@@ -689,10 +702,17 @@ public class ToolEnchantMenu extends Menu {
      */
     private void addEnchantmentSlot(int slot, String enchantId) {
         CustomEnchant enchant = plugin.getToolManager().getEnchantById(enchantId);
+        String shardsConfigVar = Utils.colorize(plugin.getConfig().getString("currencies.shards.color"));
+        String runesConfigVar = Utils.colorize(plugin.getConfig().getString("currencies.runes.color"));
         if (enchant == null) return;
 
         int currentLevel = currentEnchants.getOrDefault(enchantId, 0);
         int maxLevel = enchant.getMaxLevel();
+
+        // Determine currency type
+        boolean useShards = enchant.getCurrencyType() == CustomEnchant.CurrencyType.SHARDS;
+        String currencyName = useShards ? "Shards" : "Runes";
+        String currencyColor = useShards ? shardsConfigVar : runesConfigVar;
 
         // Choose the appropriate configuration
         String configKey = currentLevel == 0 ? "enchant-locked" :
@@ -704,23 +724,49 @@ public class ToolEnchantMenu extends Menu {
                 .replace("{enchant_name}", enchant.getDisplayName())
                 .replace("{level}", currentLevel > 0 ? GensTool.formatEnchantmentLevel(currentLevel) : "")
                 .replace("{current_level}", String.valueOf(currentLevel))
-                .replace("{max_level}", String.valueOf(maxLevel));
+                .replace("{max_level}", String.valueOf(maxLevel))
+                .replace("{currency}", currencyName)
+                .replace("{currency_color}", currencyColor);
 
-        // Calculate costs for display
-        long shardCost = calculateCost(enchantId, currentLevel, true);
-        long runeCost = calculateCost(enchantId, currentLevel, false);
+        // Calculate cost for display - use the appropriate currency
+        long cost = calculateCost(enchantId, currentLevel, useShards);
 
         // Replace placeholders in lore
         List<String> lore = new ArrayList<>();
+        boolean addedCurrencyLine = false;
+
         for (String line : enchantInfo.lore) {
+            // Skip lines with left-click/right-click distinctions
+            if (line.contains("Left-Click") || line.contains("Right-Click")) {
+                continue;
+            }
+
+            // Add our unified currency line
+            if ((line.contains("{shard_cost}") || line.contains("{rune_cost}")) && !addedCurrencyLine) {
+                if (currentLevel < maxLevel) {
+                    lore.add(ChatColor.translateAlternateColorCodes('&', "&aClick &7to upgrade with " + currencyColor + currencyName));
+                    lore.add(ChatColor.translateAlternateColorCodes('&', "&7Cost: " + currencyColor + formatter.format(cost) + " " + currencyName));
+                    addedCurrencyLine = true;
+                }
+                continue;
+            }
+
             line = line.replace("{enchant_description}", enchant.getDescription())
                     .replace("{enchant_name}", enchant.getDisplayName())
                     .replace("{current_level}", currentLevel > 0 ? String.valueOf(currentLevel) : "Not Unlocked")
                     .replace("{max_level}", String.valueOf(maxLevel))
-                    .replace("{shard_cost}", formatter.format(shardCost))  // Format with NumberFormatter
-                    .replace("{rune_cost}", formatter.format(runeCost))    // Format with NumberFormatter
-                    .replace("{level}", currentLevel > 0 ? GensTool.formatEnchantmentLevel(currentLevel) : "");
-            lore.add(line);
+                    .replace("{cost}", formatter.format(cost))
+                    .replace("{currency}", currencyName);
+
+            // For backward compatibility
+            if (useShards) {
+                line = line.replace("{shard_cost}", formatter.format(cost));
+            } else {
+                line = line.replace("{rune_cost}", formatter.format(cost));
+            }
+
+            line = line.replace("{level}", currentLevel > 0 ? GensTool.formatEnchantmentLevel(currentLevel) : "");
+            lore.add(ChatColor.translateAlternateColorCodes('&', line));
         }
 
         // Get enchant icon info

@@ -5,6 +5,7 @@ enchants:
     description: "&7Breaks blocks in an area"
     max-level: 5
     is-treasure: false
+    currency: SHARDS
     type: explosive
     applicable-tools:
       - pickaxe
@@ -14,6 +15,7 @@ enchants:
     description: "&7Automatically smelts blocks"
     max-level: 3
     is-treasure: false
+    currency: RUNES
     type: auto_smelt
     applicable-tools:
       - pickaxe
@@ -23,6 +25,7 @@ enchants:
     description: "&7Chance to deal critical damage"
     max-level: 5
     is-treasure: false
+    currency: SHARDS
     type: critical_strike
     applicable-tools:
       - sword
@@ -32,6 +35,7 @@ enchants:
     description: "&7Heals when dealing damage"
     max-level: 3
     is-treasure: false
+    currency: RUNES
     type: life_steal
     applicable-tools:
       - sword
@@ -41,6 +45,7 @@ enchants:
     description: "&7Chance to earn shards when killing mobs"
     max-level: 5
     is-treasure: false
+    currency: RUNES
     type: shard_greed
     applicable-tools:
       - sword
@@ -66,6 +71,7 @@ enchants:
     description: "&7Chance to earn shards when mining ores"
     max-level: 50
     is-treasure: false
+    currency: SHARDS
     type: shard_finder
     applicable-tools:
       - pickaxe

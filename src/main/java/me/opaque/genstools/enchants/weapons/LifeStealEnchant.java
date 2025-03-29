@@ -9,8 +9,13 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 
 public class LifeStealEnchant extends CustomEnchant {
 
+    public LifeStealEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure, CurrencyType currencyType) {
+        super(id, displayName, description, maxLevel, isTreasure, currencyType);
+    }
+
+    // Constructor for backward compatibility
     public LifeStealEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure) {
-        super(id, displayName, description, maxLevel, isTreasure);
+        this(id, displayName, description, maxLevel, isTreasure, CurrencyType.SHARDS);
     }
 
     @Override

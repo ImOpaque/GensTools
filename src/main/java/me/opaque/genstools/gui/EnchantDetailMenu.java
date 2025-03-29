@@ -5,10 +5,12 @@ import me.opaque.genstools.GensTools;
 import me.opaque.genstools.enchants.CustomEnchant;
 import me.opaque.genstools.tools.GensTool;
 import me.opaque.genstools.utils.NumberFormatter;
+import me.opaque.genstools.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemFlag;
@@ -177,12 +179,21 @@ public class EnchantDetailMenu extends Menu {
         int currentLevel = GensTool.getEnchantmentLevel(toolItem, enchantId);
         int maxLevel = enchant.getMaxLevel();
 
+        String shardsConfigVar = Utils.colorize(plugin.getConfig().getString("currencies.shards.color"));
+        String runesConfigVar = Utils.colorize(plugin.getConfig().getString("currencies.runes.color"));
+
+        // Get currency type for display
+        String currencyName = enchant.getCurrencyType() == CustomEnchant.CurrencyType.SHARDS ? "Shards" : "Runes";
+        String currencyColor = enchant.getCurrencyType() == CustomEnchant.CurrencyType.SHARDS ? shardsConfigVar : runesConfigVar;
+
         String name = ChatColor.translateAlternateColorCodes('&',
                 plugin.getGuiConfig().getString("enchant-detail.enchant-info.name", "&6{enchant_name} {level}")
                         .replace("{enchant_name}", enchant.getDisplayName())
                         .replace("{level}", currentLevel > 0 ? GensTool.formatEnchantmentLevel(currentLevel) : "")
                         .replace("{current_level}", String.valueOf(currentLevel))
-                        .replace("{max_level}", String.valueOf(maxLevel)));
+                        .replace("{max_level}", String.valueOf(maxLevel))
+                        .replace("{currency}", currencyName))
+                        .replace("{currency_color}", currencyColor);
 
         List<String> loreConfig = plugin.getGuiConfig().getStringList("enchant-detail.enchant-info.lore");
         List<String> lore = new ArrayList<>();
@@ -192,7 +203,9 @@ public class EnchantDetailMenu extends Menu {
                     .replace("{enchant_name}", enchant.getDisplayName())
                     .replace("{current_level}", String.valueOf(currentLevel))
                     .replace("{max_level}", String.valueOf(maxLevel))
-                    .replace("{level}", currentLevel > 0 ? GensTool.formatEnchantmentLevel(currentLevel) : "");
+                    .replace("{level}", currentLevel > 0 ? GensTool.formatEnchantmentLevel(currentLevel) : "")
+                    .replace("{currency}", currencyName)
+                    .replace("{currency_color}", currencyColor);
 
             lore.add(ChatColor.translateAlternateColorCodes('&', line));
         }
@@ -255,49 +268,124 @@ public class EnchantDetailMenu extends Menu {
         Material material = Material.valueOf(
                 plugin.getGuiConfig().getString(materialPath, defaultMaterial));
 
-        // Calculate cost for this increment
-        final long totalShardCost = calculateTotalCost(currentLevel, increment, true);
-        final long totalRuneCost = calculateTotalCost(currentLevel, increment, false);
+        // Determine if we use shards or runes based on the enchant's currency type
+        boolean useShards = enchant.getCurrencyType() == CustomEnchant.CurrencyType.SHARDS;
+
+        // Calculate cost for this increment using the determined currency
+        final long totalCost = calculateTotalCost(currentLevel, increment, useShards);
+
+        String shardsConfigVar = Utils.colorize(plugin.getConfig().getString("currencies.shards.color"));
+        String runesConfigVar = Utils.colorize(plugin.getConfig().getString("currencies.runes.color"));
+
+        // Get currency name for display
+        String currencyName = useShards ? "Shards" : "Runes";
+        String currencyColor = useShards ? shardsConfigVar : runesConfigVar;
 
         // Create the lore
         List<String> loreConfig = plugin.getGuiConfig().getStringList("enchant-detail.upgrade-options.lore");
         List<String> lore = new ArrayList<>();
 
+        // Only add relevant lines that don't contain left-click/right-click distinctions
+        boolean addedCurrencyLine = false;
         for (String line : loreConfig) {
+            // Skip lines with left-click/right-click references
+            if (line.contains("Left-Click") || line.contains("Right-Click")) {
+                continue;
+            }
+
+            // Add our unified currency line if we encounter a cost placeholder
+            if ((line.contains("{shard_cost}") || line.contains("{rune_cost}")) && !addedCurrencyLine) {
+                lore.add(ChatColor.translateAlternateColorCodes('&', "&aClick &7to upgrade with " + currencyColor + currencyName));
+                lore.add(ChatColor.translateAlternateColorCodes('&', "&7Cost: " + currencyColor + formatter.format(totalCost) + " " + currencyName));
+                addedCurrencyLine = true;
+                continue;
+            }
+
+            // Skip lines specific to the other currency
+            if ((useShards && line.contains("{rune_cost}")) ||
+                    (!useShards && line.contains("{shard_cost}"))) {
+                continue;
+            }
+
+            // Replace placeholders
             line = line.replace("{increment}", String.valueOf(increment))
-                    .replace("{shard_cost}", formatter.format(totalShardCost)) // Format with NumberFormatter
-                    .replace("{rune_cost}", formatter.format(totalRuneCost))   // Format with NumberFormatter
-                    .replace("{new_level}", String.valueOf(currentLevel + increment))
+                    .replace("{cost}", formatter.format(totalCost))
+                    .replace("{currency}", currencyName)
+                    .replace("{currency_color}", currencyColor);
+
+            // For backwards compatibility
+            if (useShards) {
+                line = line.replace("{shard_cost}", formatter.format(totalCost));
+            } else {
+                line = line.replace("{rune_cost}", formatter.format(totalCost));
+            }
+
+            line = line.replace("{new_level}", String.valueOf(currentLevel + increment))
                     .replace("{max_level}", String.valueOf(maxLevel));
 
             lore.add(ChatColor.translateAlternateColorCodes('&', line));
         }
 
+        // If we didn't add a currency line yet, add it at the end
+        if (!addedCurrencyLine) {
+            lore.add(ChatColor.translateAlternateColorCodes('&', "&aClick &7to upgrade with " + currencyColor + currencyName));
+            lore.add(ChatColor.translateAlternateColorCodes('&', "&7Cost: " + currencyColor + formatter.format(totalCost) + " " + currencyName));
+        }
+
         // Create name with the increment
         String name = ChatColor.translateAlternateColorCodes('&',
                 plugin.getGuiConfig().getString("enchant-detail.upgrade-options.name", "&a+{increment} Levels")
-                        .replace("{increment}", String.valueOf(increment)));
+                        .replace("{increment}", String.valueOf(increment))
+                        .replace("{currency}", currencyName));
 
         ItemStack upgradeItem = createItem(material, name, lore);
 
         // Add click handler with final variables
-        final int finalIncrement = increment; // This is redundant as increment is already final, but making it explicit
+        final int finalIncrement = increment;
+        final long finalCost = totalCost;
+
+        // Now only handle normal click (no right-click distinction)
         setItem(slot, upgradeItem, event -> {
-            // Handle left/right click for shards/runes
-            boolean useShards = !event.isRightClick();
-            handleIncrementalUpgrade(finalIncrement, useShards ? totalShardCost : totalRuneCost, useShards);
+            handleIncrementalUpgrade(finalIncrement, finalCost, useShards);
         });
     }
 
     /**
-     * Calculate total cost for multiple level upgrades
+     * Update the calculateTotalCost method to only use the appropriate currency
      */
-    private long calculateTotalCost(int currentLevel, int increment, boolean useShards) {
+    private long calculateTotalCost(int currentLevel, int levels, boolean useShards) {
         long totalCost = 0;
 
-        for (int level = currentLevel + 1; level <= currentLevel + increment; level++) {
-            long levelCost = calculateCost(enchantId, level - 1, useShards);
-            totalCost += levelCost;
+        // Base costs from GUI config
+        ConfigurationSection costsSection = plugin.getGuiConfig()
+                .getConfigurationSection("tool-gui.enchant-costs." + enchantId);
+
+        long baseCost;
+        if (costsSection != null) {
+            baseCost = useShards ?
+                    costsSection.getLong("shards", 1000) :
+                    costsSection.getLong("runes", 100);
+        } else {
+            // Use default costs if not specifically configured
+            costsSection = plugin.getGuiConfig()
+                    .getConfigurationSection("tool-gui.enchant-costs.default");
+
+            if (costsSection != null) {
+                baseCost = useShards ?
+                        costsSection.getLong("shards", 1000) :
+                        costsSection.getLong("runes", 100);
+            } else {
+                // Hardcoded defaults as last resort
+                baseCost = useShards ? 1000 : 100;
+            }
+        }
+
+        // Calculate cost for each level
+        double costMultiplier = plugin.getGuiConfig().getDouble("tool-gui.cost-multiplier", 1.5);
+        for (int i = 0; i < levels; i++) {
+            int level = currentLevel + i + 1;
+            double multiplier = Math.pow(costMultiplier, level - 1);
+            totalCost += (long) (baseCost * multiplier);
         }
 
         return totalCost;
@@ -491,6 +579,9 @@ public class EnchantDetailMenu extends Menu {
         int currentLevel = GensTool.getEnchantmentLevel(toolItem, enchantId);
         int maxLevel = enchant.getMaxLevel();
 
+        // String to use in messages
+        String currencyName = useShards ? "Shards" : "Runes";
+
         // Already at max level
         if (currentLevel >= maxLevel) {
             playSound("upgrade-failed");
@@ -511,11 +602,10 @@ public class EnchantDetailMenu extends Menu {
 
         if (balance < cost) {
             playSound("upgrade-failed");
-            String currency = useShards ? "Shards" : "Runes";
             sendMessage("insufficient-funds", Map.of(
-                    "{currency}", currency,
-                    "{cost}", formatter.format(cost),          // Format with NumberFormatter
-                    "{balance}", formatter.format(balance)     // Format with NumberFormatter
+                    "{currency}", currencyName,
+                    "{cost}", formatter.format(cost),
+                    "{balance}", formatter.format(balance)
             ));
             return;
         }
@@ -551,10 +641,16 @@ public class EnchantDetailMenu extends Menu {
         playSound("upgrade-success");
         sendMessage("upgrade-success", Map.of(
                 "{enchant_name}", enchant.getDisplayName(),
-                "{level}", GensTool.formatEnchantmentLevel(currentLevel + increment)
+                "{level}", GensTool.formatEnchantmentLevel(currentLevel + increment),
+                "{currency}", currencyName
         ));
 
         plugin.getToolPersistenceManager().handleToolUpdate(player, toolItem);
+
+        // Update the parent menu
+        if (parentMenu instanceof ToolEnchantMenu) {
+            ((ToolEnchantMenu) parentMenu).refreshEnchantmentData();
+        }
 
         // Rebuild the menu to reflect the updated enchantment level
         Bukkit.getScheduler().runTask(plugin, this::build);

@@ -8,6 +8,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 
 import java.util.Random;
@@ -27,9 +28,13 @@ public class ShardFinderEnchant extends CustomEnchant {
     private String activationMessage = "&6&lSHARD GREED ACTIVATED: &7Gained &e{shards} shards!";
     private boolean configLoaded = false;
 
+    public ShardFinderEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure, CurrencyType currencyType) {
+        super(id, displayName, description, maxLevel, isTreasure, currencyType);
+    }
+
+    // Constructor for backward compatibility
     public ShardFinderEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure) {
-        super(id, displayName, description, maxLevel, isTreasure);
-        // Don't load config here
+        this(id, displayName, description, maxLevel, isTreasure, CurrencyType.SHARDS);
     }
 
     /**
@@ -125,6 +130,6 @@ public class ShardFinderEnchant extends CustomEnchant {
 
     @Override
     public boolean canHandleEvent(Class<? extends Event> eventClass) {
-        return EntityDeathEvent.class.isAssignableFrom(eventClass);
+        return eventClass == BlockBreakEvent.class;
     }
 }

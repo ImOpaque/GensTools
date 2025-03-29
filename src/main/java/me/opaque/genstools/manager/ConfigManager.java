@@ -116,12 +116,24 @@ public class ConfigManager {
             boolean isTreasure = enchantSection.getBoolean("is-treasure", false);
             String type = enchantSection.getString("type", "default").toLowerCase();
 
+            // Added: Read the currency type from config
+            String currencyStr = enchantSection.getString("currency", "SHARDS").toUpperCase();
+            CustomEnchant.CurrencyType currencyType;
+            try {
+                currencyType = CustomEnchant.CurrencyType.valueOf(currencyStr);
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("Invalid currency type '" + currencyStr + "' for enchantment " +
+                        enchantId + ". Defaulting to SHARDS.");
+                currencyType = CustomEnchant.CurrencyType.SHARDS;
+            }
+
+            // Updated: Pass the currency type to the factory
             CustomEnchant enchant = EnchantFactory.createEnchant(
-                    type, enchantId, displayName, description, maxLevel, isTreasure);
+                    type, enchantId, displayName, description, maxLevel, isTreasure, currencyType);
 
             if (enchant != null) {
                 plugin.getToolManager().registerEnchant(enchant);
-                plugin.getLogger().info("Registered enchant: " + enchantId);
+                plugin.getLogger().info("Registered enchant: " + enchantId + " with currency: " + currencyType);
             } else {
                 plugin.getLogger().warning("Unknown enchant type: " + type + " for enchant: " + enchantId);
             }

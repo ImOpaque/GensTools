@@ -10,8 +10,13 @@ import org.bukkit.inventory.ItemStack;
 
 public class AutoSmeltEnchant extends CustomEnchant {
 
+    public AutoSmeltEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure, CurrencyType currencyType) {
+        super(id, displayName, description, maxLevel, isTreasure, currencyType);
+    }
+
+    // Constructor for backward compatibility
     public AutoSmeltEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure) {
-        super(id, displayName, description, maxLevel, isTreasure);
+        this(id, displayName, description, maxLevel, isTreasure, CurrencyType.SHARDS);
     }
 
     @Override
@@ -43,7 +48,7 @@ public class AutoSmeltEnchant extends CustomEnchant {
 
     @Override
     public boolean canHandleEvent(Class<? extends Event> eventClass) {
-        return BlockBreakEvent.class.isAssignableFrom(eventClass);
+        return eventClass == BlockBreakEvent.class;
     }
 
     private ItemStack getSmeltedDrop(Material blockType, int level) {

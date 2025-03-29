@@ -19,6 +19,14 @@ settings:
       - t-1000000000000
       - q-1000000000000000
 
+#Currencies Options
+currencies:
+  shards:
+    color: "&e"
+  runes:
+    color: "&5"
+
+
 # Persistence system settings
 persistence:
   # How often to auto-save tool data (in seconds)

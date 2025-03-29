@@ -15,8 +15,13 @@ import java.util.Random;
 public class ExplosiveEnchant extends CustomEnchant {
     private final Random random = new Random();
 
+    public ExplosiveEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure, CurrencyType currencyType) {
+        super(id, displayName, description, maxLevel, isTreasure, currencyType);
+    }
+
+    // Constructor for backward compatibility
     public ExplosiveEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure) {
-        super(id, displayName, description, maxLevel, isTreasure);
+        this(id, displayName, description, maxLevel, isTreasure, CurrencyType.SHARDS);
     }
 
     @Override
@@ -75,7 +80,7 @@ public class ExplosiveEnchant extends CustomEnchant {
 
     @Override
     public boolean canHandleEvent(Class<? extends Event> eventClass) {
-        return BlockBreakEvent.class.isAssignableFrom(eventClass);
+        return eventClass == BlockBreakEvent.class;
     }
 
     private List<Block> getBlocksInRadius(Block center, int radius) {

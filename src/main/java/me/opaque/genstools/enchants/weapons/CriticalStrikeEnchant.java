@@ -10,8 +10,13 @@ import java.util.Random;
 public class CriticalStrikeEnchant extends CustomEnchant {
     private final Random random = new Random();
 
+    public CriticalStrikeEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure, CurrencyType currencyType) {
+        super(id, displayName, description, maxLevel, isTreasure, currencyType);
+    }
+
+    // Constructor for backward compatibility
     public CriticalStrikeEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure) {
-        super(id, displayName, description, maxLevel, isTreasure);
+        this(id, displayName, description, maxLevel, isTreasure, CurrencyType.SHARDS);
     }
 
     @Override
@@ -45,6 +50,6 @@ public class CriticalStrikeEnchant extends CustomEnchant {
 
     @Override
     public boolean canHandleEvent(Class<? extends Event> eventClass) {
-        return EntityDamageByEntityEvent.class.isAssignableFrom(eventClass);
+        return eventClass == EntityDamageByEntityEvent.class;
     }
 }

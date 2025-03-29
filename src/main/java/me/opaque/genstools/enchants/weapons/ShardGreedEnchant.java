@@ -27,9 +27,13 @@ public class ShardGreedEnchant extends CustomEnchant {
     private String activationMessage = "&6&lSHARD GREED ACTIVATED: &7Gained &e{shards} shards!";
     private boolean configLoaded = false;
 
+    public ShardGreedEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure, CurrencyType currencyType) {
+        super(id, displayName, description, maxLevel, isTreasure, currencyType);
+    }
+
+    // Constructor for backward compatibility
     public ShardGreedEnchant(String id, String displayName, String description, int maxLevel, boolean isTreasure) {
-        super(id, displayName, description, maxLevel, isTreasure);
-        // Don't load config here
+        this(id, displayName, description, maxLevel, isTreasure, CurrencyType.SHARDS);
     }
 
     /**
@@ -125,6 +129,6 @@ public class ShardGreedEnchant extends CustomEnchant {
 
     @Override
     public boolean canHandleEvent(Class<? extends Event> eventClass) {
-        return EntityDeathEvent.class.isAssignableFrom(eventClass);
+        return eventClass == EntityDeathEvent.class;
     }
 }
