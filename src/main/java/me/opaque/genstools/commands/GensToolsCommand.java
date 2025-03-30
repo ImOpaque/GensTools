@@ -4,8 +4,10 @@ import me.opaque.genstools.GensTools;
 import me.opaque.genstools.enchants.CustomEnchant;
 import me.opaque.genstools.tools.GensTool;
 import me.opaque.genstools.utils.NumberFormatter;
+import me.opaque.genstools.utils.Utils;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -17,10 +19,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class GensToolsCommand implements CommandExecutor, TabCompleter {
@@ -344,7 +343,7 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
                 plugin.getConfigManager().reloadConfigs();
                 plugin.getLoreManager().reloadConfig();
 
-                sender.sendMessage(plugin.getMessageManager().getMessage("reload.success"));
+                sender.sendMessage(plugin.getMessageManager().getMessage("commands.reload.success"));
                 return true;
 
             case "help":
@@ -353,6 +352,29 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
 
             case "persistence":
                 handlePersistenceCommands(sender, args);
+                return true;
+
+            case "givecube":
+                if (!hasPermission(sender, "genstools.command.givecube")) return true;
+                return handleGiveCube(sender, args);
+
+            case "iteminfo":
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage("This command can only be used by players.");
+                    return true;
+                }
+
+                ItemStack item = player.getInventory().getItemInMainHand();
+                if (item == null || item.getType() == Material.AIR) {
+                    player.sendMessage("You must be holding a GensTool to use this command.");
+                    return true;
+                }
+
+                String debug = GensTool.debugItemData(item);
+                player.sendMessage(debug);
+
+                // Also log the debug info
+                plugin.getLogger().info(debug);
                 return true;
 
             default:
@@ -433,6 +455,10 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
         if (sender.hasPermission("genstools.command.enchant"))
             sender.sendMessage(ChatColor.YELLOW + "/genstools enchant <enchant> <level> " + ChatColor.GRAY + "- Add an enchant to held tool");
 
+        if (sender.hasPermission("genstools.command.givecube"))
+            sender.sendMessage(ChatColor.YELLOW + "/genstools givecube <player> <tier> <enchant> <success> <boost> [amount] " +
+                    ChatColor.GRAY + "- Give enchantment cube to a player");
+
         if (sender.hasPermission("genstools.command.list"))
             sender.sendMessage(ChatColor.YELLOW + "/genstools list <tools|enchants> " + ChatColor.GRAY + "- List available tools or enchants");
 
@@ -469,6 +495,8 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("genstools.command.addexp")) subcommands.add("addexp");
             if (sender.hasPermission("genstools.command.info")) subcommands.add("info");
             if (sender.hasPermission("genstools.command.reload")) subcommands.add("reload");
+            // Inside the if (args.length == 1) block
+            if (sender.hasPermission("genstools.command.givecube")) subcommands.add("givecube");
             subcommands.add("help");
 
             return filterStartsWith(subcommands, args[0]);
@@ -492,6 +520,8 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
             } else if (args[0].equalsIgnoreCase("addexp") && sender.hasPermission("genstools.command.addexp")) {
                 // Suggest exp amounts
                 return filterStartsWith(Arrays.asList("100", "500", "1000", "5000", "10000"), args[1]);
+            } else if (args[0].equalsIgnoreCase("givecube") && sender.hasPermission("genstools.command.givecube")) {
+                return null; // Return player names (null returns online players)
             }
         } else if (args.length == 3) {
             if (args[0].equalsIgnoreCase("give") && sender.hasPermission("genstools.command.give")) {
@@ -500,6 +530,14 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
                         new ArrayList<>(plugin.getToolManager().getAllToolIds()),
                         args[2]
                 );
+            } else if (args[0].equalsIgnoreCase("givecube") && sender.hasPermission("genstools.command.givecube")) {
+                // Get all available tiers
+                Set<Integer> tiers = plugin.getEnchantmentCubeManager().getAvailableTiers();
+                List<String> tierStrings = new ArrayList<>();
+                for (Integer tier : tiers) {
+                    tierStrings.add(tier.toString());
+                }
+                return filterStartsWith(tierStrings, args[2]);
             } else if (args[0].equalsIgnoreCase("enchant") && sender.hasPermission("genstools.command.enchant")) {
                 // For enchant levels, suggest 1-5
                 List<String> levels = Arrays.asList("1", "2", "3", "4", "5");
@@ -511,6 +549,28 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
                             sender.hasPermission("genstools.command.setexp") ||
                             sender.hasPermission("genstools.command.addexp"))) {
                 return null; // Return player names
+            }
+        } else if (args.length == 4) {
+            if (args[0].equalsIgnoreCase("givecube") && args.length == 4 && sender.hasPermission("genstools.command.givecube")) {
+                try {
+                    int tier = Integer.parseInt(args[2]);
+                    List<String> enchants = plugin.getEnchantmentCubeManager().getAvailableEnchantsForTier(tier);
+                    return filterStartsWith(enchants, args[3]);
+                } catch (NumberFormatException ignored) {
+                    return filterStartsWith(new ArrayList<>(), args[3]);
+                }
+            }
+        } else if (args.length == 5) {
+            if (args[0].equalsIgnoreCase("givecube") && args.length == 5 && sender.hasPermission("genstools.command.givecube")) {
+                return filterStartsWith(Arrays.asList("25", "50", "75", "100"), args[4]);
+            }
+        } else if (args.length == 6) {
+            if (args[0].equalsIgnoreCase("givecube") && args.length == 6 && sender.hasPermission("genstools.command.givecube")) {
+                return filterStartsWith(Arrays.asList("5.0", "10.0", "15.0", "20.0"), args[5]);
+            }
+        } else if (args.length == 7) {
+            if (args[0].equalsIgnoreCase("givecube") && args.length == 7 && sender.hasPermission("genstools.command.givecube")) {
+                return filterStartsWith(Arrays.asList("1", "5", "10", "64"), args[6]);
             }
         }
 
@@ -622,5 +682,110 @@ public class GensToolsCommand implements CommandExecutor, TabCompleter {
             case 5 -> "V";
             default -> String.valueOf(number);
         };
+    }
+
+    /**
+     * Handle the givecube command
+     */
+    private boolean handleGiveCube(CommandSender sender, String[] args) {
+        if (args.length < 6) {
+            sender.sendMessage(ChatColor.RED + "Usage: /genstools givecube <player> <tier> <enchant> <success> <boost> [amount]");
+            return true;
+        }
+
+        // Parse arguments
+        Player targetPlayer = Bukkit.getPlayer(args[1]);
+        if (targetPlayer == null) {
+            sender.sendMessage(ChatColor.RED + "Player not found!");
+            return true;
+        }
+
+        int tier, successRate, amount;
+        double boost;
+
+        try {
+            tier = Integer.parseInt(args[2]);
+            successRate = Integer.parseInt(args[4]);
+            boost = Double.parseDouble(args[5]);
+            amount = args.length > 6 ? Integer.parseInt(args[6]) : 1;
+        } catch (NumberFormatException e) {
+            sender.sendMessage(ChatColor.RED + "Invalid number format. Please use numbers for tier, success rate, boost, and amount.");
+            return true;
+        }
+
+        String enchantId = args[3].toLowerCase();
+
+        // Give the cube to the player
+        boolean success = plugin.getEnchantmentCubeManager().giveCube(targetPlayer, tier, enchantId, successRate, boost, amount);
+
+        if (success) {
+            sender.sendMessage(ChatColor.GREEN + "Gave " + targetPlayer.getName() + " " + amount + " enchantment cube(s).");
+
+            if (sender != targetPlayer) {
+                targetPlayer.sendMessage(ChatColor.GREEN + "You received " + amount + " enchantment cube(s).");
+            }
+        } else {
+            sender.sendMessage(ChatColor.RED + "Failed to give enchantment cube. Check the tier and enchantment ID.");
+        }
+
+        return true;
+    }
+
+    /**
+     * Send command usage to sender
+     */
+    private void sendGiveCubeUsage(CommandSender sender) {
+        Utils.sendMessage(sender, "&cUsage: /genstools givecube <player> <tier> <enchant> <success> <boost> [amount]");
+    }
+
+    /**
+     * Tab completion for the givecube command
+     */
+    private List<String> tabCompleteGiveCube(CommandSender sender, String[] args) {
+        List<String> completions = new ArrayList<>();
+
+        if (args.length == 2) {
+            // Tab complete with online player names
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                completions.add(player.getName());
+            }
+        }
+        else if (args.length == 3) {
+            // Tab complete with available tiers
+            for (int tier : plugin.getEnchantmentCubeManager().getAvailableTiers()) {
+                completions.add(String.valueOf(tier));
+            }
+        }
+        else if (args.length == 4) {
+            try {
+                // Tab complete with available enchants for the selected tier
+                int tier = Integer.parseInt(args[2]);
+                List<String> enchants = plugin.getEnchantmentCubeManager().getAvailableEnchantsForTier(tier);
+                completions.addAll(enchants);
+            } catch (NumberFormatException ignored) { }
+        }
+        else if (args.length == 5) {
+            // Tab complete with common success rates
+            completions.add("25");
+            completions.add("50");
+            completions.add("75");
+            completions.add("100");
+        }
+        else if (args.length == 6) {
+            // Tab complete with common boost values
+            completions.add("5.0");
+            completions.add("10.0");
+            completions.add("15.0");
+            completions.add("20.0");
+        }
+        else if (args.length == 7) {
+            // Tab complete with common amounts
+            completions.add("1");
+            completions.add("5");
+            completions.add("10");
+            completions.add("64");
+        }
+
+        return completions;
     }
 }

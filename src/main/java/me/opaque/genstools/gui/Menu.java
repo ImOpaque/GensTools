@@ -23,10 +23,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -89,14 +86,202 @@ public abstract class Menu {
         // Register this menu as active for the player
         activeMenus.put(player.getUniqueId(), this);
 
-        // Create inventory with the title
-        inventory = Bukkit.createInventory(null, rows * 9, ChatColor.translateAlternateColorCodes('&', title));
+        if (this instanceof CubeRemovalMenu) {
+            // Force exactly 3 rows for CubeRemovalMenu using direct reflection
+            try {
+                // Create the inventory first
+                inventory = Bukkit.createInventory(null, 3 * 9, ChatColor.translateAlternateColorCodes('&', title));
 
-        // Build items
-        build();
+                // Build items
+                build();
 
-        // Open for the player
-        player.openInventory(inventory);
+                // Open the inventory
+                player.openInventory(inventory);
+
+                // Use direct NMS approach to force 3 rows
+                forceInventoryRows(player, 3);
+
+                Utils.logDebug("Opened CubeRemovalMenu with forced 3 rows");
+            } catch (Exception e) {
+                Utils.logError("Failed to open CubeRemovalMenu with 3 rows: " + e.getMessage());
+                e.printStackTrace();
+
+                // Fallback to regular inventory if reflection fails
+                inventory = Bukkit.createInventory(null, 3 * 9, ChatColor.translateAlternateColorCodes('&', title));
+                build();
+                player.openInventory(inventory);
+            }
+        } else {
+            // Normal menu opening for other menu types
+            inventory = Bukkit.createInventory(null, rows * 9, ChatColor.translateAlternateColorCodes('&', title));
+            build();
+            player.openInventory(inventory);
+        }
+    }
+
+    /**
+     * Force a specific number of rows for an inventory using direct NMS code
+     * This is a last resort method for CubeRemovalMenu
+     */
+    private void forceInventoryRows(Player player, int rows) {
+        try {
+            // Use ProtocolLib to send a custom OPEN_WINDOW packet
+            ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
+
+            // Create a new packet for opening a window
+            PacketContainer packet = protocolManager.createPacket(PacketType.Play.Server.OPEN_WINDOW);
+
+            // Get the container ID for the current inventory
+            int windowId = player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
+            packet.getIntegers().write(0, windowId);
+
+            // Set the inventory title
+            WrappedChatComponent component = WrappedChatComponent.fromText(
+                    ChatColor.translateAlternateColorCodes('&', title));
+            packet.getChatComponents().write(0, component);
+
+            // This is the critical part - we need to set the type based on rows
+            // Try multiple approaches to support different MC versions
+
+            // 1. Try setting the container type via registry for 1.19+
+            try {
+                // Get the registry ID for GENERIC_9x(rows)
+                int containerId = rows - 1;  // 0 = GENERIC_9x1, 1 = GENERIC_9x2, etc.
+
+                // First, try direct integer approach (works in some versions)
+                try {
+                    packet.getIntegers().write(1, containerId);
+                    Utils.logDebug("Set container type using integer ID: " + containerId);
+                } catch (Exception e) {
+                    Utils.logDebug("Integer container type failed: " + e.getMessage());
+
+                    // Next, try using the registry directly (for 1.21+)
+                    try {
+                        Class<?> registryClass = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
+                        Field menuTypeRegistryField = registryClass.getDeclaredField("MENU");
+                        menuTypeRegistryField.setAccessible(true);
+                        Object menuRegistry = menuTypeRegistryField.get(null);
+
+                        Class<?> registryApiClass = Class.forName("net.minecraft.core.Registry");
+                        Method byIdMethod = registryApiClass.getMethod("byId", int.class);
+                        Object menuType = byIdMethod.invoke(menuRegistry, containerId);
+
+                        if (menuType != null) {
+                            packet.getModifier().write(1, menuType);
+                            Utils.logDebug("Set container type using registry object");
+                        } else {
+                            Utils.logWarning("Registry returned null container type for ID " + containerId);
+                        }
+                    } catch (Exception ex) {
+                        Utils.logDebug("Registry approach failed: " + ex.getMessage());
+
+                        // Try a direct reflection lookup of the MenuType field
+                        try {
+                            Class<?> containerTypes = Class.forName("net.minecraft.world.inventory.MenuType");
+                            Field[] fields = containerTypes.getDeclaredFields();
+
+                            // Look for fields that contain "GENERIC" and the row count
+                            String fieldNameToFind = "GENERIC_9x" + rows;
+                            for (Field field : fields) {
+                                if (field.getName().contains(fieldNameToFind)) {
+                                    field.setAccessible(true);
+                                    Object menuType = field.get(null);
+                                    if (menuType != null) {
+                                        packet.getModifier().write(1, menuType);
+                                        Utils.logDebug("Set container type using direct field access: " + field.getName());
+                                        break;
+                                    }
+                                }
+                            }
+                        } catch (Exception e2) {
+                            Utils.logDebug("Direct field access failed: " + e2.getMessage());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Utils.logWarning("Failed to set container type: " + e.getMessage());
+            }
+
+            // Send the packet after a short delay to override the previously opened inventory
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                try {
+                    protocolManager.sendServerPacket(player, packet);
+                    Utils.logDebug("Sent custom OPEN_WINDOW packet to force " + rows + " rows");
+
+                    // Force the client to update its inventory
+                    Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
+                } catch (Exception e) {
+                    Utils.logError("Failed to send custom packet: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }, 1L);
+
+        } catch (Exception e) {
+            Utils.logError("Failed to force inventory rows: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Fix inventory size using ProtocolLib (primarily for CubeRemovalMenu)
+     * @param desiredRows The number of rows to display (regardless of actual inventory size)
+     */
+    private void fixInventorySize(int desiredRows) {
+        try {
+            // Must be between 1-6 rows
+            if (desiredRows < 1 || desiredRows > 6) {
+                Utils.logWarning("Invalid row count: " + desiredRows + ", must be between 1-6");
+                return;
+            }
+
+            Utils.logDebug("Fixing inventory size to " + desiredRows + " rows using direct packet replacement");
+
+            // Get ProtocolManager
+            ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
+
+            // We need to close the current inventory and reopen it with the correct size
+            // This is more reliable than trying to modify the packet on the fly
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                try {
+                    // Get the current inventory contents
+                    ItemStack[] contents = inventory.getContents();
+
+                    // Store the active menu for this player - it should be this menu
+                    Menu activeMenu = activeMenus.get(player.getUniqueId());
+
+                    // Close the current inventory
+                    player.closeInventory();
+
+                    // Create a new inventory with the desired size
+                    Inventory newInventory = Bukkit.createInventory(null, desiredRows * 9,
+                            ChatColor.translateAlternateColorCodes('&', title));
+
+                    // Copy items from old inventory to new, up to the capacity of the new inventory
+                    for (int i = 0; i < Math.min(contents.length, newInventory.getSize()); i++) {
+                        if (contents[i] != null) {
+                            newInventory.setItem(i, contents[i]);
+                        }
+                    }
+
+                    // Update inventory reference
+                    inventory = newInventory;
+
+                    // Restore active menu
+                    activeMenus.put(player.getUniqueId(), activeMenu != null ? activeMenu : this);
+
+                    // Open the new inventory
+                    player.openInventory(newInventory);
+
+                    Utils.logDebug("Reopened inventory with " + desiredRows + " rows");
+                } catch (Exception e) {
+                    Utils.logError("Error reopening inventory with fixed size: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }, 1L);
+        } catch (Exception e) {
+            Utils.logError("Error setting up inventory size fix: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -265,206 +450,244 @@ public abstract class Menu {
     }
 
     /**
-     * Update inventory title using direct packet creation for Minecraft 1.21
+     * Special method for opening the CubeRemovalMenu with exactly 3 rows
      */
-    private void updateInventoryTitle(String newTitle) {
+    public void openCubeMenu() {
+        if (!(this instanceof CubeRemovalMenu)) {
+            // Only for CubeRemovalMenu
+            open();
+            return;
+        }
+
+        Utils.logDebug("Opening CubeRemovalMenu");
+
+        // Register this menu as active
+        activeMenus.put(player.getUniqueId(), this);
+
+        // Create the inventory with the correct number of slots
+        inventory = Bukkit.createInventory(null, 27, ChatColor.translateAlternateColorCodes('&', title));
+        Utils.logDebug("Created inventory with " + inventory.getSize() + " slots");
+
+        // Build the menu content
+        build();
+
+        // Open the inventory
+        player.openInventory(inventory);
+
+        // Force an inventory update after a short delay to ensure everything displays correctly
+        Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
+    }
+
+    /**
+     * Count non-empty items in the inventory
+     */
+    private int countItems() {
+        int count = 0;
+        if (inventory != null) {
+            for (int i = 0; i < inventory.getSize(); i++) {
+                ItemStack item = inventory.getItem(i);
+                if (item != null && item.getType() != Material.AIR) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Helper method to get the EntityPlayer from a Bukkit Player
+     */
+    private Object getEntityPlayer(Player player) {
+        try {
+            Method getHandle = player.getClass().getMethod("getHandle");
+            return getHandle.invoke(player);
+        } catch (Exception e) {
+            Utils.logDebug("Could not get EntityPlayer: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Helper method to find a field by multiple possible names
+     */
+    private Field findField(Class<?> clazz, String... fieldNames) {
+        for (String fieldName : fieldNames) {
+            try {
+                Field field = clazz.getDeclaredField(fieldName);
+                if (field != null) {
+                    return field;
+                }
+            } catch (NoSuchFieldException e) {
+                // Try next name
+            }
+        }
+
+        // Try superclass if available
+        if (clazz.getSuperclass() != null) {
+            return findField(clazz.getSuperclass(), fieldNames);
+        }
+
+        return null;
+    }
+
+    /**
+     * Send a custom OPEN_WINDOW packet with the exact number of rows we want
+     */
+    private void sendCustomOpenWindowPacket(int rows) {
         try {
             ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
 
-            // Get the current container ID
-            int containerId = player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
-
-            Utils.logDebug("Updating title for container ID: " + containerId);
-
-            // Create a brand new packet
+            // Create the packet
             PacketContainer packet = protocolManager.createPacket(PacketType.Play.Server.OPEN_WINDOW);
 
-            // Set the container ID
-            packet.getIntegers().write(0, containerId);
+            // Get current container ID
+            int windowId = player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
+            packet.getIntegers().write(0, windowId);
 
-            // Set the menu type - for 1.21 we need to use the correct enum by registry ID
-            // Most chest inventories use ID 0 to 6 based on rows (9x1 to 9x6)
-            // For a standard chest with rows*9 slots, the ID is (rows - 1)
-            int menuTypeId = Math.min(rows - 1, 5); // Ensure it's within valid range (0-5)
+            // Set the title
+            WrappedChatComponent component = WrappedChatComponent.fromText(
+                    ChatColor.translateAlternateColorCodes('&', title));
+            packet.getChatComponents().write(0, component);
 
-            // Debug packet structure
-            Utils.logDebug("Packet structure before modification:");
-            for (int i = 0; i < packet.getModifier().getFields().size(); i++) {
+            // Set the container type based on rows (0-indexed)
+            // GENERIC_9x1 = 0, GENERIC_9x2 = 1, GENERIC_9x3 = 2, etc.
+            int containerTypeId = rows - 1;
+
+            // Try various approaches to set the container type
+            boolean success = false;
+
+            // Approach 1: Direct integer (works on some versions)
+            try {
+                packet.getIntegers().write(1, containerTypeId);
+                success = true;
+                Utils.logDebug("Set container type using integer ID");
+            } catch (Exception e) {
+                Utils.logDebug("Integer container type approach failed: " + e.getMessage());
+            }
+
+            // Approach 2: Using reflection to get the registry (for 1.21+)
+            if (!success) {
                 try {
-                    Object value = packet.getModifier().read(i);
-                    Utils.logDebug("Field " + i + ": " + (value == null ? "null" : value.getClass().getSimpleName() + " - " + value));
+                    Class<?> registryClass = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
+                    Field menuTypeField = registryClass.getDeclaredField("MENU");
+                    menuTypeField.setAccessible(true);
+                    Object menuRegistry = menuTypeField.get(null);
+
+                    Class<?> registryClass2 = Class.forName("net.minecraft.core.Registry");
+                    Method byIdMethod = registryClass2.getMethod("byId", int.class);
+                    Object menuType = byIdMethod.invoke(menuRegistry, containerTypeId);
+
+                    if (menuType != null) {
+                        packet.getModifier().write(1, menuType);
+                        success = true;
+                        Utils.logDebug("Set container type using registry lookup");
+                    }
                 } catch (Exception e) {
-                    Utils.logDebug("Field " + i + ": Error reading: " + e.getMessage());
+                    Utils.logDebug("Registry approach failed: " + e.getMessage());
                 }
             }
 
-            // Use a special helper method to set the menu type properly for 1.21
-            setMenuTypeById(packet, menuTypeId);
-
-            // Set the title component
-            WrappedChatComponent component = WrappedChatComponent.fromText(
-                    ChatColor.translateAlternateColorCodes('&', newTitle));
-            packet.getChatComponents().write(0, component);
-
-            // Debug final packet structure
-            Utils.logDebug("Packet structure after modification:");
-            for (int i = 0; i < packet.getModifier().getFields().size(); i++) {
+            // Approach 3: Using reflection to directly access the menu type constants
+            if (!success) {
                 try {
-                    Object value = packet.getModifier().read(i);
-                    Utils.logDebug("Field " + i + ": " + (value == null ? "null" : value.getClass().getSimpleName() + " - " + value));
+                    Class<?> menuTypeClass = Class.forName("net.minecraft.world.inventory.MenuType");
+
+                    // Try to find the field for the right generic container
+                    Field[] fields = menuTypeClass.getDeclaredFields();
+                    String fieldName = "GENERIC_9x" + rows;
+
+                    for (Field field : fields) {
+                        if (field.getName().contains(fieldName) ||
+                                field.getName().equals("a") && containerTypeId == 0 ||
+                                field.getName().equals("b") && containerTypeId == 1 ||
+                                field.getName().equals("c") && containerTypeId == 2) {
+
+                            field.setAccessible(true);
+                            Object menuType = field.get(null);
+
+                            if (menuType != null) {
+                                packet.getModifier().write(1, menuType);
+                                success = true;
+                                Utils.logDebug("Set container type using direct field: " + field.getName());
+                                break;
+                            }
+                        }
+                    }
                 } catch (Exception e) {
-                    Utils.logDebug("Field " + i + ": Error reading: " + e.getMessage());
+                    Utils.logDebug("Direct field approach failed: " + e.getMessage());
                 }
+            }
+
+            if (!success) {
+                Utils.logWarning("Could not set container type using any method - menu may display incorrectly");
             }
 
             // Send the packet
             protocolManager.sendServerPacket(player, packet);
+            Utils.logDebug("Sent custom OPEN_WINDOW packet with " + rows + " rows");
 
-            // Update our title field
-            this.title = newTitle;
-
-            Utils.logDebug("Successfully sent menu title update packet with menu type ID: " + menuTypeId);
+            // Force inventory update
+            Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
 
         } catch (Exception e) {
-            Utils.logError("Failed to update inventory title: " + e.getMessage());
+            Utils.logError("Failed to send custom OPEN_WINDOW packet: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     /**
-     * Helper method to set the MenuType by registry ID
+     * Switch to a different menu without using packet manipulation
+     * This avoids issues with Minecraft 1.21's registry system
      */
-    private void setMenuTypeById(PacketContainer packet, int typeId) {
-        try {
-            // First try using reflection to get the proper MenuType enum value
-            Class<?> registryClass = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
-            Field menuTypeRegistryField = registryClass.getDeclaredField("MENU");
-            menuTypeRegistryField.setAccessible(true);
-            Object menuRegistry = menuTypeRegistryField.get(null);
-
-            // Use the registry to get the MenuType by ID
-            Class<?> registryApiClass = Class.forName("net.minecraft.core.Registry");
-            Method byIdMethod = registryApiClass.getDeclaredMethod("byId", int.class);
-            byIdMethod.setAccessible(true);
-            Object menuType = byIdMethod.invoke(menuRegistry, typeId);
-
-            // Set the menu type in the packet
-            packet.getModifier().write(1, menuType);
-            Utils.logDebug("Successfully set menu type using registry lookup");
-
-        } catch (Exception e) {
-            Utils.logDebug("Registry lookup failed: " + e.getMessage());
-
-            // Alternative approach: try to directly modify field 1 with a custom wrapper
-            try {
-                // Try writing a type value via reflection
-                Field field = packet.getHandle().getClass().getDeclaredField("menuType");
-                field.setAccessible(true);
-
-                // Get Containers class by reflection
-                Class<?> containersClass = null;
-                try {
-                    containersClass = Class.forName("net.minecraft.world.inventory.MenuType");
-                } catch (ClassNotFoundException ex) {
-                    // Try fallback paths
-                    try {
-                        containersClass = Class.forName("net.minecraft.server.v1_21_R1.MenuType");
-                    } catch (ClassNotFoundException ex2) {
-                        // One more try
-                        containersClass = Class.forName("net.minecraft.world.inventory.Containers");
-                    }
-                }
-
-                // Get the GENERIC_9x[1-6] field
-                Field containerField = null;
-                String fieldName = "GENERIC_9x" + Math.min(rows, 6);
-                try {
-                    containerField = containersClass.getDeclaredField(fieldName);
-                } catch (NoSuchFieldException ex) {
-                    // Try alternative naming
-                    if (rows <= 6) {
-                        containerField = containersClass.getDeclaredField("GENERIC_9x" + rows);
-                    } else {
-                        containerField = containersClass.getDeclaredField("GENERIC_9x6");
-                    }
-                }
-
-                containerField.setAccessible(true);
-                Object containerType = containerField.get(null);
-
-                // Set the field value
-                field.set(packet.getHandle(), containerType);
-                Utils.logDebug("Successfully set menu type using direct field reflection");
-
-            } catch (Exception e2) {
-                plugin.getLogger().severe("All menu type setting approaches failed: " + e2.getMessage());
-                e2.printStackTrace();
-            }
-        }
-    }
-    /**
-     * Switch to a different menu type without closing the inventory
-     * Uses ProtocolLib for direct packet manipulation
-     *//*
     public void switchTo(Menu nextMenu) {
         Utils.logDebug("Switching from " + this.getClass().getSimpleName() +
-                " to " + nextMenu.getClass().getSimpleName() + " with ProtocolLib");
+                " to " + nextMenu.getClass().getSimpleName() + " - safe method");
 
         try {
-            // Register the new menu as active
-            activeMenus.put(player.getUniqueId(), nextMenu);
+            // If we're switching to a CubeRemovalMenu, use special handling
+            if (nextMenu instanceof CubeRemovalMenu) {
+                // Close current menu
+                activeMenus.remove(player.getUniqueId());
+                player.closeInventory();
 
-            // Point next menu to our current inventory
-            nextMenu.inventory = this.inventory;
-
-            // Clear our item handlers (but not inventory items yet)
-            this.items.clear();
-
-            // If we're switching back to a ToolEnchantMenu, refresh its enchantment data
-            if (nextMenu instanceof ToolEnchantMenu toolMenu) {
-                toolMenu.refreshEnchantmentData();
-                Utils.logDebug("Refreshed tool enchantment data during menu switch");
+                // Open the cube menu with special handling
+                nextMenu.openCubeMenu();
+                return;
             }
 
-            // Get window ID for the player's current container
-            int windowId = getPlayerContainerId(player);
-            Utils.logDebug("Current window ID: " + windowId);
+            // If we're switching from a CubeRemovalMenu to another menu type,
+            // we need to handle the inventory size change
+            if (this instanceof CubeRemovalMenu) {
+                // Close current menu
+                activeMenus.remove(player.getUniqueId());
+                player.closeInventory();
 
-            // 1. First send window title packet using ProtocolLib
-            updateTitleWithProtocolLib(player, windowId, nextMenu.title);
-
-            // 2. Now clear and rebuild inventory with a delay
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                // Clear all items
-                Utils.logDebug("Clearing inventory items");
-                for (int i = 0; i < inventory.getSize(); i++) {
-                    inventory.setItem(i, null);
+                // Create appropriate inventory for target menu
+                if (nextMenu instanceof ToolEnchantMenu) {
+                    nextMenu.inventory = Bukkit.createInventory(null, 54, ChatColor.translateAlternateColorCodes('&', nextMenu.title));
+                } else {
+                    nextMenu.inventory = Bukkit.createInventory(null, nextMenu.rows * 9, ChatColor.translateAlternateColorCodes('&', nextMenu.title));
                 }
 
-                // Have the next menu build its contents
-                Utils.logDebug("Building new menu items");
+                // Register the new menu as active
+                activeMenus.put(player.getUniqueId(), nextMenu);
+
+                // If we're switching to a ToolEnchantMenu, refresh its enchantment data
+                if (nextMenu instanceof ToolEnchantMenu toolMenu) {
+                    toolMenu.refreshEnchantmentData();
+                }
+
+                // Build and open the new menu
                 nextMenu.build();
+                player.openInventory(nextMenu.inventory);
 
                 // Force client update
-                player.updateInventory();
+                Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
 
-                Utils.logDebug("Menu switch completed with ProtocolLib");
-            }, 1L);
+                return;
+            }
 
-        } catch (Exception e) {
-            Utils.logError("Error during ProtocolLib menu switch: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }*/
-
-    /**
-     * Switch to a different menu type - 1.21 compatible version
-     */
-    public void switchTo(Menu nextMenu) {
-        Utils.logDebug("Switching from " + this.getClass().getSimpleName() +
-                " to " + nextMenu.getClass().getSimpleName() + " with ProtocolLib (1.21)");
-
-        try {
+            // Regular menu switching for other menu types
             // Register the new menu as active
             activeMenus.put(player.getUniqueId(), nextMenu);
 
@@ -479,25 +702,21 @@ public abstract class Menu {
                 toolMenu.refreshEnchantmentData();
             }
 
-            // Try to update the title
-            send121TitleUpdatePacket(player, nextMenu.title);
+            // Update title field
+            this.title = nextMenu.title;
 
-            // Now clear and rebuild inventory with a delay
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                // Clear all items
-                for (int i = 0; i < inventory.getSize(); i++) {
-                    inventory.setItem(i, null);
-                }
+            // Now clear and rebuild inventory contents
+            for (int i = 0; i < inventory.getSize(); i++) {
+                inventory.setItem(i, null);
+            }
 
-                // Have the next menu build its contents
-                nextMenu.build();
+            // Build new menu contents
+            nextMenu.build();
 
-                // Force client update
-                player.updateInventory();
+            // Force client update
+            player.updateInventory();
 
-                Utils.logDebug("Menu switch completed");
-            }, 1L);
-
+            Utils.logDebug("Menu switch completed safely");
         } catch (Exception e) {
             Utils.logError("Error during menu switch: " + e.getMessage());
             e.printStackTrace();
@@ -505,409 +724,478 @@ public abstract class Menu {
     }
 
     /**
-     * Send a specialized OpenWindow packet for Minecraft 1.21 using registered menu types
+     * Update inventory title using specific Minecraft 1.21 registry technique
      */
-    private void send121TitleUpdatePacket(Player player, String newTitle) {
+    private boolean updateTitle121(Player player, int windowId, String title) {
         try {
-            // Get the ProtocolManager
+            Utils.logDebug("Attempting 1.21 registry-aware title update");
             ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
 
-            // For 1.21, we need to create the packet differently
-            // We'll use a ResourceLocation approach to get a valid registered menu type
+            // Create a new packet
+            PacketContainer packet = protocolManager.createPacket(PacketType.Play.Server.OPEN_WINDOW);
 
-            // 1. First, let's prepare the window ID and title component
-            int windowId = player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
-            String coloredTitle = ChatColor.translateAlternateColorCodes('&', newTitle);
-            WrappedChatComponent titleComponent = WrappedChatComponent.fromText(coloredTitle);
+            // Set window ID
+            packet.getIntegers().write(0, windowId);
 
-            Utils.logDebug("Preparing 1.21 title packet with window ID: " + windowId);
+            // Convert title to chat component
+            WrappedChatComponent component = WrappedChatComponent.fromText(
+                    ChatColor.translateAlternateColorCodes('&', title));
 
+            // This is the critical part for 1.21:
+            // Using proper registry ID for menu type
+
+            // Get the NMS player to access their current container
+            Object nmsPlayer = getMinecraftPlayer(player);
+            if (nmsPlayer == null) {
+                Utils.logError("Could not get NMS player");
+                return false;
+            }
+
+            // Get the active container
+            Object activeContainer = getPlayerContainer(nmsPlayer);
+            if (activeContainer == null) {
+                Utils.logError("Could not get active container");
+                return false;
+            }
+
+            // Get the container's menu type
+            Object menuType = getContainerType(activeContainer);
+            if (menuType == null) {
+                Utils.logError("Could not get container type");
+                return false;
+            }
+
+            Utils.logDebug("Got container type: " + menuType.toString());
+
+            // Set the menu type in the packet
+            packet.getModifier().write(1, menuType);
+
+            // Set the title
+            packet.getChatComponents().write(0, component);
+
+            // Send the packet
+            protocolManager.sendServerPacket(player, packet);
+
+            // Also update the client's inventory immediately to prevent desync
+            Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
+
+            Utils.logDebug("Title update packet sent successfully");
+            return true;
+        } catch (Exception e) {
+            Utils.logError("Error in updateTitle121: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Final fallback for 1.21-R1 specifically
+     */
+    private boolean updateTitle121Direct(Player player, String title) {
+        try {
+            Utils.logDebug("Attempting direct 1.21-R1 title update implementation");
+
+            // Direct implementation for 1.21-R1
+            Object craftPlayer = player.getClass().getMethod("getHandle").invoke(player);
+
+            // Try several potential field names for player connection in 1.21
+            Object connection = null;
+            String[] connectionFieldNames = {"c", "b", "connection", "playerConnection"};
+            for (String fieldName : connectionFieldNames) {
+                try {
+                    Field connectionField = craftPlayer.getClass().getDeclaredField(fieldName);
+                    connectionField.setAccessible(true);
+                    connection = connectionField.get(craftPlayer);
+                    if (connection != null) {
+                        Utils.logDebug("Found connection field: " + fieldName);
+                        break;
+                    }
+                } catch (NoSuchFieldException ignored) {}
+            }
+
+            if (connection == null) {
+                Utils.logError("Could not find player connection field");
+                return false;
+            }
+
+            // Try several potential field names for container in 1.21
+            Object container = null;
+            String[] containerFieldNames = {"bW", "bU", "bP", "containerMenu", "activeContainer"};
+            for (String fieldName : containerFieldNames) {
+                try {
+                    Field containerField = craftPlayer.getClass().getDeclaredField(fieldName);
+                    containerField.setAccessible(true);
+                    container = containerField.get(craftPlayer);
+                    if (container != null) {
+                        Utils.logDebug("Found container field: " + fieldName);
+                        break;
+                    }
+                } catch (NoSuchFieldException ignored) {}
+            }
+
+            if (container == null) {
+                Utils.logError("Could not find player container field");
+                return false;
+            }
+
+            // Try several potential field names for window ID in 1.21
+            int windowId = -1;
+            String[] windowIdFieldNames = {"j", "windowId", "containerId"};
+            for (String fieldName : windowIdFieldNames) {
+                try {
+                    Field windowIdField = container.getClass().getDeclaredField(fieldName);
+                    windowIdField.setAccessible(true);
+                    windowId = windowIdField.getInt(container);
+                    Utils.logDebug("Found window ID field: " + fieldName + " = " + windowId);
+                    break;
+                } catch (NoSuchFieldException ignored) {}
+            }
+
+            if (windowId == -1) {
+                Utils.logError("Could not find window ID field");
+                windowId = player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
+                Utils.logDebug("Using fallback window ID calculation: " + windowId);
+            }
+
+            // Try several potential field names for container type in 1.21
+            Object containerType = null;
+            String[] containerTypeFieldNames = {"a", "b", "type", "menuType", "containerType"};
+            for (String fieldName : containerTypeFieldNames) {
+                try {
+                    Field containerTypeField = container.getClass().getDeclaredField(fieldName);
+                    containerTypeField.setAccessible(true);
+                    containerType = containerTypeField.get(container);
+                    if (containerType != null) {
+                        Utils.logDebug("Found container type field: " + fieldName);
+                        break;
+                    }
+                } catch (NoSuchFieldException ignored) {}
+            }
+
+            // If static field approach failed, try retrieving type through a method
+            if (containerType == null) {
+                for (Method method : container.getClass().getMethods()) {
+                    if (method.getParameterCount() == 0 &&
+                            (method.getName().equals("a") ||
+                                    method.getName().equals("getType") ||
+                                    method.getName().equals("getMenuType"))) {
+                        try {
+                            containerType = method.invoke(container);
+                            if (containerType != null) {
+                                Utils.logDebug("Found container type method: " + method.getName());
+                                break;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+
+            if (containerType == null) {
+                Utils.logError("Could not find container type");
+                return false;
+            }
+
+            // Create title component
+            String coloredTitle = ChatColor.translateAlternateColorCodes('&', title);
+            Class<?> componentClass = Class.forName("net.minecraft.network.chat.Component");
+            Method literalMethod = componentClass.getMethod("literal", String.class);
+            Object titleComponent = literalMethod.invoke(null, coloredTitle);
+
+            // Create open window packet
+            Class<?> packetClass = Class.forName("net.minecraft.network.protocol.game.ClientboundOpenScreenPacket");
+
+            // Find the right constructor
+            Constructor<?> packetConstructor = null;
+            for (Constructor<?> constructor : packetClass.getConstructors()) {
+                if (constructor.getParameterCount() == 3) {
+                    packetConstructor = constructor;
+                    break;
+                }
+            }
+
+            if (packetConstructor == null) {
+                Utils.logError("Could not find appropriate packet constructor");
+                return false;
+            }
+
+            // Create packet
+            Object packet = packetConstructor.newInstance(windowId, containerType, titleComponent);
+
+            // Send packet
+            String[] sendMethodNames = {"send", "sendPacket", "a"};
+            for (String methodName : sendMethodNames) {
+                try {
+                    Method sendPacketMethod = connection.getClass().getMethod(methodName,
+                            Class.forName("net.minecraft.network.protocol.Packet"));
+                    sendPacketMethod.invoke(connection, packet);
+                    Utils.logDebug("Sent packet using method: " + methodName);
+
+                    // Force inventory update to prevent desync
+                    Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
+
+                    return true;
+                } catch (NoSuchMethodException ignored) {}
+            }
+
+            Utils.logError("Could not find appropriate send packet method");
+            return false;
+        } catch (Exception e) {
+            Utils.logDebug("Direct 1.21-R1 implementation failed: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Get the Minecraft player entity from a Bukkit player
+     */
+    private Object getMinecraftPlayer(Player player) {
+        try {
+            Method getHandle = player.getClass().getMethod("getHandle");
+            return getHandle.invoke(player);
+        } catch (Exception e) {
+            Utils.logError("Error getting NMS player: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get the player's active container
+     */
+    private Object getPlayerContainer(Object nmsPlayer) {
+        try {
+            // Field name might vary based on server version
+            // In 1.21 it could be 'bW' or 'bP' or something similar
+            // Try common field names first
+            String[] possibleFieldNames = {"bW", "bP", "bU", "containerMenu", "activeContainer"};
+
+            for (String fieldName : possibleFieldNames) {
+                try {
+                    Field containerField = nmsPlayer.getClass().getDeclaredField(fieldName);
+                    containerField.setAccessible(true);
+                    Object container = containerField.get(nmsPlayer);
+                    if (container != null) {
+                        Utils.logDebug("Found container field: " + fieldName);
+                        return container;
+                    }
+                } catch (NoSuchFieldException ignored) {
+                    // Try next field name
+                }
+            }
+
+            // If specific fields didn't work, try to find by field type
+            for (Field field : nmsPlayer.getClass().getDeclaredFields()) {
+                field.setAccessible(true);
+                if (field.getType().getSimpleName().contains("Container") ||
+                        field.getType().getSimpleName().contains("Menu")) {
+                    Object container = field.get(nmsPlayer);
+                    if (container != null) {
+                        Utils.logDebug("Found container by type: " + field.getName());
+                        return container;
+                    }
+                }
+            }
+
+            Utils.logError("Could not find container field in player object");
+            return null;
+        } catch (Exception e) {
+            Utils.logError("Error getting player container: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get the container type from a container
+     */
+    private Object getContainerType(Object container) {
+        try {
+            // Try common field names for the container type
+            String[] possibleFieldNames = {"a", "b", "c", "type", "containerType", "menuType"};
+
+            for (String fieldName : possibleFieldNames) {
+                try {
+                    Field typeField = container.getClass().getDeclaredField(fieldName);
+                    typeField.setAccessible(true);
+                    Object type = typeField.get(container);
+                    if (type != null) {
+                        Utils.logDebug("Found container type field: " + fieldName);
+                        return type;
+                    }
+                } catch (NoSuchFieldException ignored) {
+                    // Try next field name
+                }
+            }
+
+            // If specific fields didn't work, try to find the right method
+            Method[] methods = container.getClass().getMethods();
+            for (Method method : methods) {
+                String methodName = method.getName();
+                if (methodName.equalsIgnoreCase("getType") ||
+                        methodName.equalsIgnoreCase("getMenuType") ||
+                        methodName.equalsIgnoreCase("a") ||
+                        methodName.equalsIgnoreCase("b") ||
+                        methodName.equalsIgnoreCase("c")) {
+
+                    if (method.getParameterCount() == 0) {
+                        Object type = method.invoke(container);
+                        if (type != null) {
+                            Utils.logDebug("Found container type method: " + methodName);
+                            return type;
+                        }
+                    }
+                }
+            }
+
+            // If we still can't find it, try getting it from a static registry
+            // This is specific to Minecraft 1.21
             try {
-                // 2. We need to get a properly registered menu type from Minecraft's registry
+                // Get the container class
+                Class<?> containerClass = container.getClass();
 
-                // First get the NMS classes we need
-                Class<?> resourceLocationClass = Class.forName("net.minecraft.resources.ResourceLocation");
-                Class<?> builtInRegistriesClass = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
-                Class<?> registryClass = Class.forName("net.minecraft.core.Registry");
-
-                // Get the MenuType registry
-                Field menuTypeRegistryField = builtInRegistriesClass.getDeclaredField("MENU");
+                // Try to find the registry
+                Class<?> registryClass = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
+                Field menuTypeRegistryField = registryClass.getDeclaredField("MENU");
                 menuTypeRegistryField.setAccessible(true);
                 Object menuRegistry = menuTypeRegistryField.get(null);
 
-                // Create a ResourceLocation for the correct generic container type
-                Constructor<?> rlConstructor = resourceLocationClass.getConstructor(String.class);
+                // Get the container size to determine the generic container type
+                Method getSizeMethod = containerClass.getMethod("getSize");
+                int containerSize = (int) getSizeMethod.invoke(container);
 
-                // Choose the right container type based on inventory size
-                String containerTypeKey;
-                int size = inventory.getSize();
+                // Calculate generic container type based on size
+                int rows = Math.min(6, (containerSize + 8) / 9); // Round up to nearest row, max 6
 
-                if (size <= 9) containerTypeKey = "minecraft:generic_9x1";
-                else if (size <= 18) containerTypeKey = "minecraft:generic_9x2";
-                else if (size <= 27) containerTypeKey = "minecraft:generic_9x3";
-                else if (size <= 36) containerTypeKey = "minecraft:generic_9x4";
-                else if (size <= 45) containerTypeKey = "minecraft:generic_9x5";
-                else containerTypeKey = "minecraft:generic_9x6";
+                // Get the appropriate registry ID based on rows
+                // GENERIC_9x1 is usually ID 0, GENERIC_9x2 is ID 1, etc.
+                int genericTypeId = rows - 1;
 
-                Utils.logDebug("Using container type key: " + containerTypeKey);
+                // Use the registry to get the MenuType by ID
+                Class<?> registryApiClass = Class.forName("net.minecraft.core.Registry");
+                Method byIdMethod = registryApiClass.getMethod("byId", int.class);
+                Object menuType = byIdMethod.invoke(menuRegistry, genericTypeId);
 
-                Object resourceLocation = rlConstructor.newInstance(containerTypeKey);
-
-                // Get the menu type from the registry
-                Method getMethod = registryClass.getMethod("get", resourceLocationClass);
-                Object menuType = getMethod.invoke(menuRegistry, resourceLocation);
-
-                if (menuType == null) {
-                    Utils.logWarning("Registry returned null menu type for " + containerTypeKey);
-                    return;
+                if (menuType != null) {
+                    Utils.logDebug("Found container type through registry lookup: " + genericTypeId);
+                    return menuType;
                 }
+            } catch (Exception e) {
+                Utils.logDebug("Registry lookup failed: " + e.getMessage());
+            }
 
-                Utils.logDebug("Successfully retrieved menu type from registry: " + menuType);
+            Utils.logError("Could not find container type in container object");
+            return null;
+        } catch (Exception e) {
+            Utils.logError("Error getting container type: " + e.getMessage());
+            return null;
+        }
+    }
 
-                // 3. Now build the packet directly using NMS classes
-                Class<?> packetClass = Class.forName("net.minecraft.network.protocol.game.ClientboundOpenScreenPacket");
+    /**
+     * Fallback methods for updating inventory title
+     */
+    private boolean updateTitleFallbacks(Player player, String title) {
+        Utils.logDebug("Trying title update fallbacks...");
+
+        // Try the template packet method first
+        if (openWindowPacketTemplates.containsKey(player.getUniqueId())) {
+            try {
+                updateTitleWithTemplate(title);
+                Utils.logDebug("Updated title using template method");
+                return true;
+            } catch (Exception e) {
+                Utils.logDebug("Template title update failed: " + e.getMessage());
+            }
+        }
+
+        // Try alternative NMS approach
+        try {
+            // Get CraftPlayer
+            Object craftPlayer = player.getClass().getMethod("getHandle").invoke(player);
+
+            // Get player connection
+            Field connectionField = null;
+            for (Field f : craftPlayer.getClass().getDeclaredFields()) {
+                if (f.getType().getSimpleName().contains("Connection")) {
+                    connectionField = f;
+                    connectionField.setAccessible(true);
+                    break;
+                }
+            }
+
+            if (connectionField != null) {
+                Object connection = connectionField.get(craftPlayer);
+
+                // Get window ID from current inventory
+                int windowId = player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
+
+                // Create component for title
                 Class<?> componentClass = Class.forName("net.minecraft.network.chat.Component");
+                Method literalMethod = componentClass.getMethod("literal", String.class);
+                Object titleComponent = literalMethod.invoke(null,
+                        ChatColor.translateAlternateColorCodes('&', title));
 
-                // Convert our WrappedChatComponent to NMS Component
-                Object nmsComponent = null;
-                try {
-                    // Method 1: Try to get the handle directly
-                    Method getHandleMethod = titleComponent.getClass().getMethod("getHandle");
-                    nmsComponent = getHandleMethod.invoke(titleComponent);
-                } catch (Exception e) {
-                    // Method 2: Try to create a new component
-                    Method literalMethod = componentClass.getMethod("literal", String.class);
-                    nmsComponent = literalMethod.invoke(null, coloredTitle);
-                }
+                // Create packet
+                Class<?> packetClass = Class.forName("net.minecraft.network.protocol.game.ClientboundOpenScreenPacket");
 
-                if (nmsComponent == null) {
-                    Utils.logWarning("Could not create title component");
-                    return;
-                }
+                // Find the right constructor
+                Constructor<?>[] constructors = packetClass.getConstructors();
+                for (Constructor<?> constructor : constructors) {
+                    if (constructor.getParameterCount() == 3) {
+                        // Create a packet with window ID, integer type ID, and title
+                        // For Minecraft 1.21, use type ID based on rows
+                        int rows = Math.min(6, (inventory.getSize() + 8) / 9);
+                        int typeId = rows - 1;
 
-                // Create the packet using the constructor
-                Constructor<?> packetConstructor = packetClass.getConstructor(int.class, menuType.getClass(), componentClass);
-                Object nmsPacket = packetConstructor.newInstance(windowId, menuType, nmsComponent);
+                        // Try to get menu type from registry
+                        Object menuType = null;
+                        try {
+                            Class<?> registryClass = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
+                            Field menuTypeRegistryField = registryClass.getDeclaredField("MENU");
+                            menuTypeRegistryField.setAccessible(true);
+                            Object menuRegistry = menuTypeRegistryField.get(null);
 
-                Utils.logDebug("Created NMS packet: " + nmsPacket);
-
-                // 4. Send the packet using ProtocolLib's sendServerPacket with a raw packet
-                Method sendPacketMethod = protocolManager.getClass().getMethod("sendServerPacket", Player.class, Object.class);
-                sendPacketMethod.invoke(protocolManager, player, nmsPacket);
-
-                Utils.logDebug("Successfully sent NMS packet for title update");
-                this.title = newTitle;
-
-            } catch (Exception e) {
-                Utils.logError("Error creating NMS packet: " + e.getMessage());
-                e.printStackTrace();
-
-                // Let's try an alternative method if the first one failed
-                try {
-                    Utils.logDebug("Trying alternate approach");
-
-                    // Create an empty packet
-                    PacketContainer packet = new PacketContainer(PacketType.Play.Server.OPEN_WINDOW);
-
-                    // Set the window ID
-                    packet.getIntegers().write(0, windowId);
-
-                    // Set the title
-                    packet.getChatComponents().write(0, titleComponent);
-
-                    // For the menu type, we'll need to get it from the registry directly
-                    String containerTypeKey;
-                    int size = inventory.getSize();
-
-                    if (size <= 9) containerTypeKey = "minecraft:generic_9x1";
-                    else if (size <= 18) containerTypeKey = "minecraft:generic_9x2";
-                    else if (size <= 27) containerTypeKey = "minecraft:generic_9x3";
-                    else if (size <= 36) containerTypeKey = "minecraft:generic_9x4";
-                    else if (size <= 45) containerTypeKey = "minecraft:generic_9x5";
-                    else containerTypeKey = "minecraft:generic_9x6";
-
-                    // Get a valid menu type through direct NMS access
-                    Class<?> menuTypeClass = Class.forName("net.minecraft.world.inventory.MenuType");
-                    Class<?> resourceLocationClass = Class.forName("net.minecraft.resources.ResourceLocation");
-                    Constructor<?> rlConstructor = resourceLocationClass.getConstructor(String.class);
-                    Object resourceLocation = rlConstructor.newInstance(containerTypeKey);
-
-                    // Get the registry and the menu type
-                    Class<?> builtInRegistriesClass = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
-                    Field menuRegistryField = builtInRegistriesClass.getDeclaredField("MENU");
-                    menuRegistryField.setAccessible(true);
-                    Object registry = menuRegistryField.get(null);
-
-                    // Get the menu type from the registry
-                    Class<?> registryClass = registry.getClass();
-                    Method getMethod = registryClass.getMethod("get", resourceLocationClass);
-                    Object menuType = getMethod.invoke(registry, resourceLocation);
-
-                    if (menuType == null) {
-                        Utils.logWarning("Could not get menu type from registry");
-                        return;
-                    }
-
-                    // Now set it in the packet using direct field access
-                    Object packetHandle = packet.getHandle();
-                    for (Field field : packetHandle.getClass().getDeclaredFields()) {
-                        field.setAccessible(true);
-                        if (field.getType().isAssignableFrom(menuType.getClass())) {
-                            field.set(packetHandle, menuType);
-                            Utils.logDebug("Set menu type in field: " + field.getName());
-                            break;
+                            Class<?> registryApiClass = Class.forName("net.minecraft.core.Registry");
+                            Method byIdMethod = registryApiClass.getMethod("byId", int.class);
+                            menuType = byIdMethod.invoke(menuRegistry, typeId);
+                        } catch (Exception e) {
+                            Utils.logDebug("Registry lookup failed in fallback: " + e.getMessage());
+                            continue;
                         }
+
+                        if (menuType == null) {
+                            continue;
+                        }
+
+                        Object packet = constructor.newInstance(windowId, menuType, titleComponent);
+
+                        // Send packet
+                        Method sendPacketMethod = connection.getClass().getMethod("send",
+                                Class.forName("net.minecraft.network.protocol.Packet"));
+                        sendPacketMethod.invoke(connection, packet);
+
+                        Utils.logDebug("Updated title using NMS fallback method");
+                        return true;
                     }
-
-                    // Send the packet
-                    protocolManager.sendServerPacket(player, packet);
-                    Utils.logDebug("Sent title update packet using alternate approach");
-                    this.title = newTitle;
-
-                } catch (Exception e2) {
-                    Utils.logError("Both title update approaches failed: " + e2.getMessage());
-                    e2.printStackTrace();
                 }
             }
-
         } catch (Exception e) {
-            Utils.logError("Error in send121TitleUpdatePacket: " + e.getMessage());
-            e.printStackTrace();
+            Utils.logDebug("NMS fallback failed: " + e.getMessage());
         }
+
+        return false;
     }
 
     /**
-     * Get the container ID for the player's current open inventory - 1.21 specific version
+     * Send an action bar message
      */
-    private int getPlayerContainerId(Player player) {
+    private void sendActionBar(Player player, String message) {
         try {
-            Utils.logDebug("Getting container ID for " + player.getName() + " (1.21 method)");
-
-            // Get EntityPlayer from CraftPlayer
-            Object craftPlayer = player;
-            Object entityPlayer = craftPlayer.getClass().getMethod("getHandle").invoke(craftPlayer);
-
-            Utils.logDebug("Entity player class: " + entityPlayer.getClass().getName());
-
-            // For 1.21, the container is typically in a field called "bV"
-            // but let's try multiple approaches to find it
-            Object containerMenu = null;
-
-            // Approach 1: Try direct field name for 1.21
-            try {
-                Field containerField = entityPlayer.getClass().getDeclaredField("bV");
-                containerField.setAccessible(true);
-                containerMenu = containerField.get(entityPlayer);
-                Utils.logDebug("Found container using field bV");
-            } catch (NoSuchFieldException e) {
-                Utils.logDebug("Field bV not found, trying alternatives");
-            }
-
-            // Approach 2: Try to find container field dynamically
-            if (containerMenu == null) {
-                for (Field field : entityPlayer.getClass().getDeclaredFields()) {
-                    field.setAccessible(true);
-                    Object value = field.get(entityPlayer);
-
-                    if (value != null &&
-                            (value.getClass().getName().contains("Container") ||
-                                    value.getClass().getName().contains("Menu"))) {
-
-                        Utils.logDebug("Found potential container field: " + field.getName() +
-                                " of type: " + value.getClass().getName());
-
-                        containerMenu = value;
-                        break;
-                    }
-                }
-            }
-
-            // Approach 3: Try using getBukkitView as a bridge
-            if (containerMenu == null) {
-                try {
-                    // Get the inventory view
-                    Object inventoryView = player.getOpenInventory();
-                    // Use reflection to get the NMS container
-                    Method getNmsMethod = inventoryView.getClass().getMethod("getHandle");
-                    containerMenu = getNmsMethod.invoke(inventoryView);
-                    Utils.logDebug("Found container using inventory view bridge");
-                } catch (Exception e) {
-                    Utils.logDebug("Inventory view bridge failed: " + e.getMessage());
-                }
-            }
-
-            if (containerMenu == null) {
-                Utils.logWarning("Could not find container menu object");
-                // Fallback to a simple calculation
-                return player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
-            }
-
-            // Now find the container ID field in 1.21 (usually 'j')
-            // Approach 1: Try direct field name for 1.21
-            try {
-                Field idField = containerMenu.getClass().getDeclaredField("j");
-                idField.setAccessible(true);
-                int id = idField.getInt(containerMenu);
-                Utils.logDebug("Found container ID: " + id + " using field j");
-                return id;
-            } catch (NoSuchFieldException e) {
-                Utils.logDebug("Field j not found, trying alternatives");
-            }
-
-            // Approach 2: Try other common field names
-            for (String fieldName : new String[]{"containerId", "windowId", "containerCounter"}) {
-                try {
-                    Field idField = containerMenu.getClass().getDeclaredField(fieldName);
-                    idField.setAccessible(true);
-                    int id = idField.getInt(containerMenu);
-                    Utils.logDebug("Found container ID: " + id + " using field " + fieldName);
-                    return id;
-                } catch (NoSuchFieldException e) {
-                    // Continue to next field name
-                }
-            }
-
-            // Approach 3: Find by scanning for int fields with appropriate values
-            for (Field field : containerMenu.getClass().getDeclaredFields()) {
-                field.setAccessible(true);
-
-                // Only consider int fields
-                if (field.getType() == int.class) {
-                    int value = field.getInt(containerMenu);
-
-                    // Container IDs are typically small positive integers
-                    if (value > 0 && value < 100) {
-                        Utils.logDebug("Found potential container ID field: " + field.getName() +
-                                " with value: " + value);
-                        return value;
-                    }
-                }
-            }
-
-            // Fallback to a simple ID calculation that should work in most cases
-            int fallbackId = player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
-            Utils.logDebug("Using fallback container ID: " + fallbackId);
-            return fallbackId;
-
+            player.spigot().sendMessage(
+                    net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                    net.md_5.bungee.api.chat.TextComponent.fromLegacyText(message)
+            );
         } catch (Exception e) {
-            Utils.logError("Error getting container ID: " + e.getMessage());
-            e.printStackTrace();
-            // Fallback to a simple ID calculation
-            return player.getOpenInventory().getTopInventory().hashCode() & 0xFF;
-        }
-    }
-
-    /**
-     * Update inventory title using ProtocolLib packets - version-agnostic approach
-     */
-    private void updateTitleWithProtocolLib(Player player, int windowId, String title) {
-        try {
-            // Get ProtocolLib's ProtocolManager
-            ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
-
-            // Create a window title packet
-            PacketContainer packet = protocolManager.createPacket(PacketType.Play.Server.OPEN_WINDOW);
-
-            Utils.logDebug("Created OPEN_WINDOW packet for title update");
-
-            // Log the packet's structure
-            debugPacketStructure(packet);
-
-            // Try to set the windowId first
-            boolean setWindowId = false;
-            try {
-                packet.getIntegers().write(0, windowId);
-                setWindowId = true;
-                Utils.logDebug("Set window ID to: " + windowId);
-            } catch (Exception e) {
-                Utils.logWarning("Could not set window ID: " + e.getMessage());
-            }
-
-            // Try different approaches to set the inventory type
-            boolean setInventoryType = false;
-
-            // Determine inventory type string based on size
-            String inventoryTypeStr;
-            if (inventory.getSize() <= 9) inventoryTypeStr = "minecraft:generic_9x1";
-            else if (inventory.getSize() <= 18) inventoryTypeStr = "minecraft:generic_9x2";
-            else if (inventory.getSize() <= 27) inventoryTypeStr = "minecraft:generic_9x3";
-            else if (inventory.getSize() <= 36) inventoryTypeStr = "minecraft:generic_9x4";
-            else if (inventory.getSize() <= 45) inventoryTypeStr = "minecraft:generic_9x5";
-            else inventoryTypeStr = "minecraft:generic_9x6";
-
-            // Try approach 1: Using string modifier
-            try {
-                packet.getStrings().write(0, inventoryTypeStr);
-                setInventoryType = true;
-                Utils.logDebug("Set inventory type as string: " + inventoryTypeStr);
-            } catch (Exception e) {
-                Utils.logDebug("Could not set inventory type as string: " + e.getMessage());
-            }
-
-            // Try approach 2: Find a suitable field for the chat component
-            boolean setTitle = false;
-            String coloredTitle = ChatColor.translateAlternateColorCodes('&', title);
-
-            // Try to find chat components accessor
-            try {
-                WrappedChatComponent component = WrappedChatComponent.fromText(coloredTitle);
-                packet.getChatComponents().write(0, component);
-                setTitle = true;
-                Utils.logDebug("Set title using chat component");
-            } catch (Exception e) {
-                Utils.logDebug("Could not set title using chat component: " + e.getMessage());
-
-                // Try raw JSON instead
-                try {
-                    String json = "{\"text\":\"" + coloredTitle.replace("\"", "\\\"") + "\"}";
-                    Field titleField = null;
-
-                    // Try to find a suitable field for the title
-                    for (Field field : packet.getHandle().getClass().getDeclaredFields()) {
-                        field.setAccessible(true);
-                        if (field.getType().getName().contains("Component") ||
-                                field.getType().getName().contains("IChatBase")) {
-                            titleField = field;
-                            break;
-                        }
-                    }
-
-                    if (titleField != null) {
-                        // Need to convert the JSON to a component
-                        Class<?> componentClass = Class.forName("net.minecraft.network.chat.Component");
-                        Method fromJson = componentClass.getDeclaredMethod("a", String.class);
-                        fromJson.setAccessible(true);
-                        Object component = fromJson.invoke(null, json);
-
-                        titleField.set(packet.getHandle(), component);
-                        setTitle = true;
-                        Utils.logDebug("Set title using reflected component field");
-                    }
-                } catch (Exception e2) {
-                    Utils.logWarning("Could not set title using reflection: " + e2.getMessage());
-                }
-            }
-
-            // Log a summary of what we've done
-            Utils.logDebug("Title update packet preparation: " +
-                    "WindowID=" + setWindowId +
-                    ", InventoryType=" + setInventoryType +
-                    ", Title=" + setTitle);
-
-            // Only send the packet if at least window ID was set
-            if (setWindowId) {
-                // Send the packet
-                protocolManager.sendServerPacket(player, packet);
-                Utils.logDebug("Sent title update packet");
-
-                // Update our title field
-                this.title = title;
-            } else {
-                Utils.logWarning("Did not send title packet as window ID could not be set");
-            }
-        } catch (Exception e) {
-            Utils.logError("Error in updateTitleWithProtocolLib: " + e.getMessage());
-            e.printStackTrace();
+            Utils.logDebug("Could not send action bar: " + e.getMessage());
         }
     }
 
@@ -1017,5 +1305,168 @@ public abstract class Menu {
         Utils.logDebug("Applying prepared items to inventory");
         // Note: The inventory should already have the items added during build()
         // This method is just a hook for any post-processing
+    }
+
+    /**
+     * Get a custom ItemsAdder item for menu elements
+     * Falls back to default material if ItemsAdder is not available or item doesn't exist
+     */
+    protected ItemStack getItemsAdderItem(String namespace, Material fallback) {
+        try {
+            // Use ItemsAdder API to get custom item
+            Class<?> customStackClass = Class.forName("dev.lone.itemsadder.api.CustomStack");
+            Method getInstance = customStackClass.getMethod("getInstance", String.class);
+
+            Object customStack = getInstance.invoke(null, namespace);
+            if (customStack != null) {
+                Method getItemStackMethod = customStack.getClass().getMethod("getItemStack");
+                return (ItemStack) getItemStackMethod.invoke(customStack);
+            }
+        } catch (Exception e) {
+            Utils.logDebug("Error getting ItemsAdder item '" + namespace + "': " + e.getMessage());
+        }
+
+        // Fallback to default material
+        return new ItemStack(fallback);
+    }
+
+    /**
+     * Create a standardized header row with ItemsAdder custom items
+     */
+    protected void createItemsAdderHeader() {
+        try {
+            // Get custom background item
+            ItemStack backgroundItem = getItemsAdderItem("genstools:menu_background", Material.BLACK_STAINED_GLASS_PANE);
+            ItemMeta backgroundMeta = backgroundItem.getItemMeta();
+            if (backgroundMeta != null) {
+                backgroundMeta.setDisplayName(" ");
+                backgroundItem.setItemMeta(backgroundMeta);
+            }
+
+            // Fill the top row with background items
+            for (int i = 0; i < 9; i++) {
+                if (i != 4) { // Skip center for title item
+                    setItem(i, backgroundItem);
+                }
+            }
+
+            // Create a custom title item based on menu type
+            String menuType = this.getClass().getSimpleName().toLowerCase().replace("menu", "");
+            ItemStack titleItem = getItemsAdderItem("genstools:menu_" + menuType, Material.BOOK);
+
+            // If specific menu item doesn't exist, use generic one
+            if (titleItem.getType() == Material.BOOK) {
+                titleItem = getItemsAdderItem("genstools:menu_generic", Material.ENCHANTED_BOOK);
+            }
+
+            // Customize the title item
+            ItemMeta titleMeta = titleItem.getItemMeta();
+            if (titleMeta != null) {
+                // Use ItemsAdder font if available
+                String coloredTitle = ChatColor.translateAlternateColorCodes('&', title);
+
+                // Try to use custom font
+                try {
+                    Class<?> fontClass = Class.forName("dev.lone.itemsadder.api.FontImages.FontImageWrapper");
+                    Method applyFont = fontClass.getMethod("applyToItemMeta", ItemMeta.class, String.class);
+
+                    // Apply custom font to the title
+                    applyFont.invoke(null, titleMeta, "genstools:menu_title:" + coloredTitle);
+                } catch (Exception e) {
+                    // Fallback to regular text
+                    titleMeta.setDisplayName(ChatColor.GOLD + coloredTitle);
+                }
+
+                // Add lore with menu description
+                List<String> lore = new ArrayList<>();
+                lore.add(ChatColor.GRAY + "Current Menu: " + ChatColor.WHITE + menuType);
+                titleMeta.setLore(lore);
+
+                titleMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES);
+                titleItem.setItemMeta(titleMeta);
+            }
+
+            // Add the title item to the center
+            setItem(4, titleItem);
+
+        } catch (Exception e) {
+            Utils.logError("Error creating ItemsAdder header: " + e.getMessage());
+
+            // Fallback to standard header
+            createStandardHeader();
+        }
+    }
+
+    /**
+     * Create a standard header without ItemsAdder
+     */
+    protected void createStandardHeader() {
+        // Add a row of glass panes at the top
+        ItemStack pane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemMeta paneMeta = pane.getItemMeta();
+        if (paneMeta != null) {
+            paneMeta.setDisplayName(" ");
+            pane.setItemMeta(paneMeta);
+        }
+
+        // Fill the top row with panes
+        for (int i = 0; i < 9; i++) {
+            if (i != 4) { // Skip the center slot
+                setItem(i, pane);
+            }
+        }
+
+        // Create a title indicator item for the center
+        ItemStack titleItem = new ItemStack(Material.ENCHANTED_BOOK);
+        ItemMeta titleMeta = titleItem.getItemMeta();
+        if (titleMeta != null) {
+            String coloredTitle = ChatColor.translateAlternateColorCodes('&', title);
+            titleMeta.setDisplayName(ChatColor.GOLD + coloredTitle);
+
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Current Menu");
+            titleMeta.setLore(lore);
+
+            titleMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES);
+            titleItem.setItemMeta(titleMeta);
+        }
+
+        // Add the title item to the center
+        setItem(4, titleItem);
+    }
+
+    /**
+     * Create an enhanced button using ItemsAdder custom models
+     */
+    protected ItemStack createItemsAdderButton(String buttonType, String name, List<String> lore) {
+        // Try to get custom ItemsAdder button
+        ItemStack button = getItemsAdderItem("genstools:button_" + buttonType, Material.STONE_BUTTON);
+
+        // Customize the button
+        ItemMeta meta = button.getItemMeta();
+        if (meta != null) {
+            if (name != null && !name.isEmpty()) {
+                meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', name));
+            }
+
+            if (lore != null && !lore.isEmpty()) {
+                List<String> coloredLore = lore.stream()
+                        .map(line -> ChatColor.translateAlternateColorCodes('&', line))
+                        .collect(Collectors.toList());
+                meta.setLore(coloredLore);
+            }
+
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            button.setItemMeta(meta);
+        }
+
+        return button;
+    }
+
+    /**
+     * Create an enhanced decorative item using ItemsAdder
+     */
+    protected ItemStack createItemsAdderDecoration(String decorationType) {
+        return getItemsAdderItem("genstools:decor_" + decorationType, Material.LIGHT_BLUE_STAINED_GLASS_PANE);
     }
 }

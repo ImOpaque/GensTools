@@ -3,7 +3,7 @@
 # General settings
 settings:
   # Debug mode: Set to true for more detailed console output
-  debug: false
+  debug: true
   # Experience multiplier: Affects how much EXP tools gain
   exp-multiplier: 1.0
 

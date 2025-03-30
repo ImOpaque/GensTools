@@ -1,0 +1,95 @@
+# Enchantment Cubes Configuration
+
+# Tier definitions for enchantment cubes
+tiers:
+  1:
+    name: "&aBasic Enchantment Cube"
+    material: EMERALD
+    model-data: 1001
+    lore:
+      - "&7Apply to any GensTool to add"
+      - "&7the &f%enchantment% &7enchantment."
+      - "&7Success Rate: &a%success_rate%&7%"
+      - "&7Boost: &a+%boost%&7%"
+    default-boosts:
+      efficiency: 5.0
+      unbreaking: 5.0
+      fortune: 2.5
+      auto_smelt: 5.0
+      explosive: 2.0
+      shard_finder: 2.0
+
+  2:
+    name: "&bAdvanced Enchantment Cube"
+    material: DIAMOND
+    model-data: 1002
+    lore:
+      - "&7Apply to any GensTool to add"
+      - "&7the &f%enchantment% &7enchantment."
+      - "&7Success Rate: &b%success_rate%&7%"
+      - "&7Boost: &b+%boost%&7%"
+    default-boosts:
+      efficiency: 10.0
+      unbreaking: 10.0
+      fortune: 5.0
+      auto_smelt: 10.0
+      explosive: 5.0
+      shard_finder: 5.0
+
+  3:
+    name: "&dElite Enchantment Cube"
+    material: AMETHYST_SHARD
+    model-data: 1003
+    lore:
+      - "&7Apply to any GensTool to add"
+      - "&7the &f%enchantment% &7enchantment."
+      - "&7Success Rate: &d%success_rate%&7%"
+      - "&7Boost: &d+%boost%&7%"
+    default-boosts:
+      efficiency: 20.0
+      unbreaking: 15.0
+      fortune: 10.0
+      auto_smelt: 15.0
+      explosive: 10.0
+      shard_finder: 10.0
+
+  4:
+    name: "&6Legendary Enchantment Cube"
+    material: NETHERITE_INGOT
+    model-data: 1004
+    lore:
+      - "&7Apply to any GensTool to add"
+      - "&7the &f%enchantment% &7enchantment."
+      - "&7Success Rate: &6%success_rate%&7%"
+      - "&7Boost: &6+%boost%&7%"
+    default-boosts:
+      efficiency: 30.0
+      unbreaking: 25.0
+      fortune: 15.0
+      auto_smelt: 25.0
+      explosive: 15.0
+      shard_finder: 20.0
+
+  # Weapon cube tiers
+  5:
+    name: "&aBasic Weapon Cube"
+    material: EMERALD
+    model-data: 2001
+    lore:
+      - "&7Apply to any GensSword to add"
+      - "&7the &f%enchantment% &7enchantment."
+      - "&7Success Rate: &a%success_rate%&7%"
+      - "&7Boost: &a+%boost%&7%"
+    default-boosts:
+      sharpness: 5.0
+      critical_strike: 2.5
+      life_steal: 2.0
+      shard_greed: 2.0
+
+# Messages for the cube system
+messages:
+  cube-applied: "&aSuccess! The %cube_name% &ahas applied %boost%% to your %enchantment%&a enchantment!"
+  cube-failed: "&cThe %cube_name% &cshattered upon application! No enchantment was applied."
+  invalid-tool: "&cThis cube can only be applied to GensTool items!"
+  incompatible-enchant: "&cThis cube cannot be applied to this tool type!"
+  inventory-full: "&cYour inventory is full! Cube has been dropped on the ground."

@@ -5,10 +5,13 @@ import me.opaque.genstools.enchants.CustomEnchant;
 import me.opaque.genstools.tools.GensTool;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -42,6 +45,63 @@ public class LoreManager {
     }
 
     /**
+     * Adds the applied cubes section to the lore
+     */
+    private void addCubesSection(List<String> lore, ItemStack item) {
+        if (!loreConfig.getBoolean("cubes.enabled", true)) return;
+
+        String header = loreConfig.getString("cubes.header", "&8❖ &7Applied Cubes:");
+        String format = loreConfig.getString("cubes.format", " &8• &7{enchant_name} &a+{boost_value}%");
+        String emptyValue = loreConfig.getString("cubes.empty-value", " &8• &7None");
+        boolean addSpacer = loreConfig.getBoolean("cubes.add-spacer", true);
+
+        // Get the ItemMeta of the tool
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+
+        PersistentDataContainer container = meta.getPersistentDataContainer();
+
+        // Check if tool has any applied cubes
+        NamespacedKey cubesKey = new NamespacedKey(plugin, "applied_cubes");
+        if (!container.has(cubesKey, PersistentDataType.STRING)) {
+            // No cubes applied, don't show section
+            return;
+        }
+
+        String cubesData = container.get(cubesKey, PersistentDataType.STRING);
+        if (cubesData == null || cubesData.isEmpty()) {
+            return;
+        }
+
+        // Add header
+        lore.add(colorize(header));
+
+        // Add cube entries
+        String[] cubes = cubesData.split(",");
+        for (String cube : cubes) {
+            String[] parts = cube.split(":");
+            if (parts.length == 2) {
+                String enchantId = parts[0];
+                String boostText = parts[1];
+
+                CustomEnchant enchant = plugin.getToolManager().getEnchantById(enchantId);
+                String enchantName = enchant != null ? enchant.getDisplayName() : enchantId;
+
+                Map<String, String> entryPlaceholders = new HashMap<>();
+                entryPlaceholders.put("enchant_name", enchantName);
+                entryPlaceholders.put("boost_value", boostText);
+
+                lore.add(colorize(replacePlaceholders(format, entryPlaceholders)));
+            }
+        }
+
+        // Add spacer if configured
+        if (addSpacer) {
+            lore.add("");
+        }
+    }
+
+    /**
      * Updates the lore of a tool with all configured sections
      *
      * @param item The tool item to update
@@ -71,6 +131,9 @@ public class LoreManager {
 
         // Add enchantments section
         addEnchantmentsSection(lore, enchantments);
+
+        // Add cubes section
+        addCubesSection(lore, item);
 
         // Add stats section with level and experience
         addStatsSection(lore, level, experience, requiredExp);

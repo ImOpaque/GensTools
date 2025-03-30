@@ -97,3 +97,13 @@ commands:
     info: "&e/genstools info &7- Show tool info"
     reload: "&e/genstools reload &7- Reload config"
     help: "&e/genstools help &7- Show this help message"
+
+# Cube-related messages
+cubes:
+  invalid-items: "{prefix}&cInvalid tool or cube item."
+  invalid-cube: "{prefix}&cInvalid enchantment cube."
+  invalid-enchant: "{prefix}&cSelected enchantment is not valid."
+  error: "{prefix}&cAn error occurred while applying the cube."
+  missing-enchant: "{prefix}&cThis tool doesn't have the %enchant% enchantment."
+  already-boosted: "{prefix}&cThe %enchant% enchantment already has a %current%% boost applied. The new boost (%new%%) must be higher."
+  success: "{prefix}&aSuccess! The %cube_name% has applied %boost%% to your %enchant% enchantment!"

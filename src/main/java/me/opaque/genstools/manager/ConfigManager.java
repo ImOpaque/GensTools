@@ -5,6 +5,7 @@ import me.opaque.genstools.enchants.CustomEnchant;
 import me.opaque.genstools.enchants.EnchantFactory;
 import me.opaque.genstools.tools.types.GensPickaxe;
 import me.opaque.genstools.tools.types.GensSword;
+import me.opaque.genstools.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -37,6 +38,10 @@ public class ConfigManager {
         }
 
         config = YamlConfiguration.loadConfiguration(configFile);
+
+        boolean debugMode = false;
+        debugMode = config.getBoolean("settings.debug");
+        Utils.setDebugMode(debugMode);
     }
 
     private void setupToolsConfig() {

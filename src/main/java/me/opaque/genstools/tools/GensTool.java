@@ -14,10 +14,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class GensTool {
     public static final NamespacedKey KEY_TOOL_ID = new NamespacedKey("genstools", "tool_id");
@@ -114,32 +111,128 @@ public class GensTool {
      * @return A map of enchantment IDs to levels
      */
     public static Map<String, Integer> getEnchantments(ItemStack item) {
-        Map<String, Integer> result = new HashMap<>();
+        Map<String, Integer> enchantments = new HashMap<>();
 
-        if (!isGensTool(item) || item.getItemMeta() == null) {
-            return result;
+        if (!isGensTool(item) || !item.hasItemMeta()) {
+            return enchantments;
         }
 
-        ItemMeta meta = item.getItemMeta();
-        PersistentDataContainer container = meta.getPersistentDataContainer();
-        GensTools plugin = GensTools.getInstance();
+        PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
+        NamespacedKey enchantKey = new NamespacedKey(GensTools.getInstance(), "enchants");
 
-        // Get all keys that start with "enchant_"
-        for (NamespacedKey key : container.getKeys()) {
-            String keyString = key.getKey();
-            String namespace = key.getNamespace();
-
-            if (keyString.startsWith("enchant_") && namespace.equals(plugin.getDescription().getName().toLowerCase())) {
-                String enchantId = keyString.substring(8); // Remove "enchant_" prefix
-                Integer level = container.get(key, PersistentDataType.INTEGER);
-
-                if (level != null && level > 0) {
-                    result.put(enchantId, level);
+        // First try to get from consolidated string
+        if (container.has(enchantKey, PersistentDataType.STRING)) {
+            String enchantData = container.get(enchantKey, PersistentDataType.STRING);
+            if (enchantData != null && !enchantData.isEmpty()) {
+                for (String entry : enchantData.split(",")) {
+                    String[] parts = entry.split(":");
+                    if (parts.length == 2) {
+                        try {
+                            enchantments.put(parts[0], Integer.parseInt(parts[1]));
+                        } catch (NumberFormatException e) {
+                            // Handle case where the stored value might be a double
+                            try {
+                                double doubleValue = Double.parseDouble(parts[1]);
+                                enchantments.put(parts[0], (int) doubleValue);
+                            } catch (NumberFormatException e2) {
+                                // Ignore invalid entries
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        return result;
+        // Also check for individual enchantment keys
+        Set<String> allEnchantIds = GensTools.getInstance().getToolManager().getAllEnchantIds();
+
+        for (String id : allEnchantIds) {
+            // Skip if we already have this enchantment from the consolidated string
+            if (enchantments.containsKey(id)) {
+                continue;
+            }
+
+            NamespacedKey individualKey = new NamespacedKey(GensTools.getInstance(), "enchant_" + id);
+
+            // Try INTEGER first
+            if (container.has(individualKey, PersistentDataType.INTEGER)) {
+                int level = container.get(individualKey, PersistentDataType.INTEGER);
+                if (level > 0) {
+                    enchantments.put(id, level);
+                }
+            }
+            // Then try DOUBLE if INTEGER fails
+            else if (container.has(individualKey, PersistentDataType.DOUBLE)) {
+                double level = container.get(individualKey, PersistentDataType.DOUBLE);
+                if (level > 0) {
+                    enchantments.put(id, (int) level);
+                }
+            }
+        }
+
+        return enchantments;
+    }
+
+    /**
+     * Debug method to print all data stored on an item
+     * @param item The item to debug
+     * @return A debug string
+     */
+    public static String debugItemData(ItemStack item) {
+        StringBuilder debug = new StringBuilder();
+        debug.append("==== Item Debug Info ====\n");
+
+        if (!isGensTool(item) || !item.hasItemMeta()) {
+            debug.append("Not a GensTool or missing ItemMeta");
+            return debug.toString();
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer container = meta.getPersistentDataContainer();
+
+        // Check tool ID
+        debug.append("Tool ID: ").append(container.has(KEY_TOOL_ID, PersistentDataType.STRING) ?
+                container.get(KEY_TOOL_ID, PersistentDataType.STRING) : "Not found").append("\n");
+
+        // Check level
+        debug.append("Level: ").append(container.has(KEY_LEVEL, PersistentDataType.INTEGER) ?
+                container.get(KEY_LEVEL, PersistentDataType.INTEGER) : "Not found").append("\n");
+
+        // Check experience
+        debug.append("Experience: ").append(container.has(KEY_EXPERIENCE, PersistentDataType.INTEGER) ?
+                container.get(KEY_EXPERIENCE, PersistentDataType.INTEGER) : "Not found").append("\n");
+
+        // Check consolidated enchantment string
+        NamespacedKey enchantKey = new NamespacedKey(GensTools.getInstance(), "enchants");
+        debug.append("Consolidated enchantments: ").append(container.has(enchantKey, PersistentDataType.STRING) ?
+                container.get(enchantKey, PersistentDataType.STRING) : "Not found").append("\n");
+
+        // Check applied cubes
+        NamespacedKey cubesKey = new NamespacedKey(GensTools.getInstance(), "applied_cubes");
+        debug.append("Applied cubes: ").append(container.has(cubesKey, PersistentDataType.STRING) ?
+                container.get(cubesKey, PersistentDataType.STRING) : "Not found").append("\n");
+
+        // Check individual enchantment keys
+        debug.append("\nIndividual enchantment keys:\n");
+
+        // List all keys in the PDC
+        debug.append("All keys in PDC:\n");
+        for (NamespacedKey key : container.getKeys()) {
+            debug.append("Key: ").append(key.toString()).append("\n");
+
+            // Try to get the value as different types
+            if (container.has(key, PersistentDataType.INTEGER)) {
+                debug.append("  INTEGER value: ").append(container.get(key, PersistentDataType.INTEGER)).append("\n");
+            }
+            if (container.has(key, PersistentDataType.DOUBLE)) {
+                debug.append("  DOUBLE value: ").append(container.get(key, PersistentDataType.DOUBLE)).append("\n");
+            }
+            if (container.has(key, PersistentDataType.STRING)) {
+                debug.append("  STRING value: ").append(container.get(key, PersistentDataType.STRING)).append("\n");
+            }
+        }
+
+        return debug.toString();
     }
 
     /**
@@ -171,10 +264,54 @@ public class GensTool {
         // Get the existing enchantments
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer container = meta.getPersistentDataContainer();
-        NamespacedKey enchantKey = new NamespacedKey(GensTools.getInstance(), "enchant_" + enchantId);
 
-        // Set the enchantment
+        // Store both individual key and update consolidated enchantment string
+        NamespacedKey enchantKey = new NamespacedKey(GensTools.getInstance(), "enchant_" + enchantId);
         container.set(enchantKey, PersistentDataType.INTEGER, level);
+
+        // Update the consolidated enchantment string
+        Map<String, Integer> enchantments = new HashMap<>();
+
+        // First get existing enchantments from the consolidated string if it exists
+        NamespacedKey enchantmentsKey = new NamespacedKey(GensTools.getInstance(), "enchants");
+        if (container.has(enchantmentsKey, PersistentDataType.STRING)) {
+            String enchantData = container.get(enchantmentsKey, PersistentDataType.STRING);
+            if (enchantData != null && !enchantData.isEmpty()) {
+                for (String entry : enchantData.split(",")) {
+                    String[] parts = entry.split(":");
+                    if (parts.length == 2) {
+                        try {
+                            enchantments.put(parts[0], Integer.parseInt(parts[1]));
+                        } catch (NumberFormatException e) {
+                            // Handle case where the stored value might be a double
+                            try {
+                                double doubleValue = Double.parseDouble(parts[1]);
+                                enchantments.put(parts[0], (int) doubleValue);
+                            } catch (NumberFormatException e2) {
+                                // Ignore invalid entries
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add or update the enchantment
+        enchantments.put(enchantId, level);
+
+        // Convert back to string
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, Integer> entry : enchantments.entrySet()) {
+            if (!first) {
+                sb.append(",");
+            }
+            sb.append(entry.getKey()).append(":").append(entry.getValue());
+            first = false;
+        }
+
+        // Store the consolidated string
+        container.set(enchantmentsKey, PersistentDataType.STRING, sb.toString());
         item.setItemMeta(meta);
 
         // Update the lore if requested

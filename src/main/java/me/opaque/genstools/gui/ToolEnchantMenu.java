@@ -7,10 +7,7 @@ import me.opaque.genstools.enchants.EnchantmentApplicability;
 import me.opaque.genstools.tools.GensTool;
 import me.opaque.genstools.utils.NumberFormatter;
 import me.opaque.genstools.utils.Utils;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -18,6 +15,8 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -368,6 +367,9 @@ public class ToolEnchantMenu extends Menu {
         // Add reset enchantments button
         addResetButton();
 
+        // Add cube management button
+        addCubeManagementButton();
+
         // Add enchants
         addEnchantments();
 
@@ -695,6 +697,69 @@ public class ToolEnchantMenu extends Menu {
             String enchantId = pageEnchants.get(startIndex + i);
             addEnchantmentSlot(enchantSlots.get(i), enchantId);
         }
+    }
+
+    /**
+     * Add cube management button
+     */
+    private void addCubeManagementButton() {
+        ItemInfo cubeInfo = itemConfig.getOrDefault("manage-cubes", new ItemInfo());
+        if (!cubeInfo.enabled) return;
+
+        // Get cube count directly from the tool
+        int cubeCount = getCubeCount(toolItem);
+
+        // Skip if no cubes are applied
+        if (cubeCount == 0 && !plugin.getConfig().getBoolean("settings.show-empty-cube-menu", false)) {
+            return;
+        }
+
+        // Replace placeholders in lore
+        List<String> lore = new ArrayList<>();
+        for (String line : cubeInfo.lore) {
+            line = line.replace("{cube_count}", String.valueOf(cubeCount));
+            lore.add(line);
+        }
+
+        ItemStack cubeItem = createItem(cubeInfo.material, cubeInfo.name, lore);
+
+        // Apply glow if configured
+        if (cubeInfo.glow) {
+            cubeItem = GensTool.applyGlow(cubeItem);
+        }
+
+        setItem(cubeInfo.slot, cubeItem, e -> {
+            // Create and switch to the cube removal menu
+            CubeRemovalMenu cubeMenu = new CubeRemovalMenu(plugin, player, toolItem, this);
+            switchTo(cubeMenu);
+        });
+    }
+
+    /**
+     * Get count of applied cubes from the tool
+     */
+    private int getCubeCount(ItemStack toolItem) {
+        if (!GensTool.isGensTool(toolItem)) {
+            return 0;
+        }
+
+        ItemMeta meta = toolItem.getItemMeta();
+        if (meta == null) {
+            return 0;
+        }
+
+        PersistentDataContainer container = meta.getPersistentDataContainer();
+
+        // Check for the consolidated cubes string
+        NamespacedKey cubesKey = new NamespacedKey(plugin, "applied_cubes");
+        if (container.has(cubesKey, PersistentDataType.STRING)) {
+            String cubesData = container.get(cubesKey, PersistentDataType.STRING);
+            if (cubesData != null && !cubesData.isEmpty()) {
+                return cubesData.split(",").length;
+            }
+        }
+
+        return 0;
     }
 
     /**

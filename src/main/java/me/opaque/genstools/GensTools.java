@@ -4,9 +4,11 @@ import me.opaque.genscore.GensCore;
 import me.opaque.genstools.commands.GensToolsCommand;
 import me.opaque.genstools.enchants.EnchantmentApplicability;
 import me.opaque.genstools.gui.MenuManager;
+import me.opaque.genstools.listeners.CubeEventListener;
 import me.opaque.genstools.listeners.PersistenceListener;
 import me.opaque.genstools.listeners.ToolEventListener;
 import me.opaque.genstools.manager.ConfigManager;
+import me.opaque.genstools.manager.EnchantmentCubeManager;
 import me.opaque.genstools.manager.ToolManager;
 import me.opaque.genstools.persistence.ToolPersistenceManager;
 import me.opaque.genstools.utils.LoreManager;
@@ -25,6 +27,7 @@ public class GensTools extends JavaPlugin {
     private GensCore gensCoreAPI;
     private MenuManager menuManager;
     private LoreManager loreManager;
+    private EnchantmentCubeManager enchantmentCubeManager;
     private ToolPersistenceManager toolPersistenceManager;
     private NumberFormatter numberFormatter;
 
@@ -45,6 +48,7 @@ public class GensTools extends JavaPlugin {
         toolManager = new ToolManager(this);
         loreManager = new LoreManager(this);
         configManager = new ConfigManager(this);
+        enchantmentCubeManager = new EnchantmentCubeManager(this);
         messageManager = new MessageManager(this);
         menuManager = new MenuManager(this);
         numberFormatter = new NumberFormatter(this);
@@ -60,8 +64,13 @@ public class GensTools extends JavaPlugin {
         // Register event listeners
         getServer().getPluginManager().registerEvents(new ToolEventListener(this), this);
         getServer().getPluginManager().registerEvents(new PersistenceListener(this), this);
+        getServer().getPluginManager().registerEvents(new CubeEventListener(this), this);
 
         getLogger().info(Utils.colorize("&9&lGensTools has been enabled!"));
+    }
+
+    private void signatureMessage() {
+
     }
 
     @Override
@@ -112,5 +121,9 @@ public class GensTools extends JavaPlugin {
 
     public NumberFormatter getNumberFormatter() {
         return numberFormatter;
+    }
+
+    public EnchantmentCubeManager getEnchantmentCubeManager() {
+        return enchantmentCubeManager;
     }
 }

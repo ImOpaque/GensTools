@@ -38,6 +38,13 @@ stats:
   # Whether to add space after stats section
   add-spacer: true
 
+cubes:
+  enabled: true
+  header: "&8❖ &7Applied Cubes:"
+  format: " &8• &7{enchant_name} &a+{boost_value}%"
+  empty-value: " &8• &7None"
+  add-spacer: true
+
 # Footer text (optional)
 footer:
   enabled: true

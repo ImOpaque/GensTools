@@ -26,6 +26,19 @@ tool-gui:
       glow: true  # Make the tool glow in the menu
       # No material/name/lore as it uses the actual tool
 
+    manage-cubes:
+      enabled: true
+      slot: 52
+      material: MAGENTA_GLAZED_TERRACOTTA
+      name: '&dManage Enchantment Cubes'
+      lore:
+        - '&7View and remove enchantment cubes'
+        - '&7applied to this tool'
+        - ''
+        - '&7Applied cubes: &b{cube_count}'
+        - ''
+        - '&eClick to manage cubes'
+
     reset-enchants:
       enabled: true
       slot: 53
@@ -348,6 +361,77 @@ enchant-detail:
       - ''
       - '&aLeft-Click &7to use &eShards'
       - '&aRight-Click &7to use &dRunes'
+
+# Cube removal menu configuration
+cube-removal:
+  enabled: true
+  title: '&6Enchantment Cubes'
+  rows: 3
+
+  # Items configuration
+  items:
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      name: ' '
+      lore: []
+
+    tool-info:
+      enabled: true
+      slot: 4
+      material: NETHER_STAR
+      name: '&eTool Information'
+      lore:
+        - '&7Level: &e{level}'
+        - '&7Applied Cubes: &b{cube_count}'
+        - '&7Click on a cube to remove it'
+
+    tool-display:
+      enabled: true
+      slot: 22
+      glow: true  # Make the tool glow in the menu
+
+    back-button:
+      enabled: true
+      slot: 18
+      material: ARROW
+      name: '&cBack to Enchantments'
+      lore:
+        - '&7Return to the enchantment menu'
+
+  # Cube display configuration
+  cube-display:
+    slots: [10, 11, 12, 13, 14, 15, 16]
+    item:
+      material: MAGENTA_GLAZED_TERRACOTTA
+      name: '&d{enchant_name} Cube: &6+{boost}%'
+      lore:
+        - '&7Enchantment: &e{enchant_name}'
+        - '&7Boost: &6+{boost}%'
+        - ''
+        - '&cClick to remove this cube'
+        - '&7Removal chance: &e{removal_chance}%'
+
+  # Removal configuration
+  removal:
+    # Chance to recover the cube (percent)
+    recovery-chance: 50
+
+    # Messages
+    messages:
+      removal-success: '&aRemoved the &e{enchant_name} &acube from your tool!'
+      removal-recovered: '&aLucky! You recovered the &e{enchant_name} &acube!'
+      removal-failed: '&cFailed to remove the cube from your tool.'
+
+    # Sounds
+    sounds:
+      removal-success:
+        sound: BLOCK_ANVIL_USE
+        volume: 0.5
+        pitch: 1.0
+      removal-recovered:
+        sound: ENTITY_PLAYER_LEVELUP
+        volume: 0.5
+        pitch: 1.2
 
   # Message configuration
   messages:

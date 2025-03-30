@@ -123,7 +123,7 @@ public class Utils {
      * @param message The message to log
      */
     public static void logInfo(String message) {
-        Bukkit.getLogger().info(colorize("[GensCore] &b" + message));
+        Bukkit.getLogger().info(colorize("[GensTools] &b" + message));
     }
 
     /**
@@ -131,7 +131,7 @@ public class Utils {
      * @param message The message to log
      */
     public static void logWarning(String message) {
-        Bukkit.getLogger().warning(colorize("[GensCore] &4" + message));
+        Bukkit.getLogger().warning(colorize("[GensTools] §4" + message));
     }
 
     /**
@@ -139,7 +139,7 @@ public class Utils {
      * @param message The message to log
      */
     public static void logError(String message) {
-        Bukkit.getLogger().severe(colorize("[GensCore] " + message));
+        Bukkit.getLogger().severe(colorize("[GensTools] - [ERROR] §4" + message));
     }
 
     /**
@@ -148,7 +148,7 @@ public class Utils {
      */
     public static void logDebug(String message) {
         if (DEBUG_MODE) {
-            Bukkit.getLogger().info(colorize("[GensCore] - [DEBUG] &6" + message));
+            Bukkit.getLogger().info(colorize("[GensTools] - [DEBUG] §c" + message));
         }
     }
 
